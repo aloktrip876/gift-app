@@ -2,13 +2,11 @@
   "name": "shreya-secret-chests",
   "version": "1.0.0",
   "private": true,
-  "description": "Dynamic server-backed version of the gift chest app",
-  "main": "server.js",
+  "description": "Netlify Functions + Google Sheets powered gift chest app",
   "dependencies": {
     "googleapis": "^144.0.0"
   },
   "scripts": {
-    "start": "node --env-file=.env --no-warnings=ExperimentalWarning server.js",
-    "start:plain": "node --no-warnings=ExperimentalWarning server.js"
+    "verify:functions": "node --check netlify/functions/state.js && node --check netlify/functions/reset.js && node --check netlify/functions/admin-states.js && node --check netlify/functions/admin-states-csv.js && node --check netlify/functions/admin-sync-sheet.js && node --check netlify/functions/_lib/sheetsStore.js"
   }
 }
