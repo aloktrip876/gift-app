@@ -1416,7 +1416,7 @@
                 swatchDiv.className = 'color-swatch';
                 swatchDiv.style.background = `linear-gradient(135deg, ${colors.bg_dark}, ${colors.bg_light})`;
                 schemeBtn.appendChild(swatchDiv);
-                schemeBtn.onclick = () => applyColorScheme(key, currentHighlight);
+                schemeBtn.onclick = () => applyColorScheme(key, state.ui.highlight || 'purple');
                 schemeContainer.appendChild(schemeBtn);
             }
 
@@ -1445,7 +1445,7 @@
                 swatchDiv.className = 'color-swatch';
                 swatchDiv.style.background = color;
                 highlightBtn.appendChild(swatchDiv);
-                highlightBtn.onclick = () => applyColorScheme(currentScheme, key);
+                highlightBtn.onclick = () => applyColorScheme(state.ui.colorScheme || 'purple', key);
                 highlightContainer.appendChild(highlightBtn);
             }
         }
