@@ -212,8 +212,8 @@
                 feedbackSent: null,
                 ui: {
                     theme: 'dark',
-                    colorScheme: 'purple',
-                    highlight: 'purple'
+                    colorScheme: 'amethyst',
+                    highlight: 'amethyst'
                 }
             };
         }
@@ -1296,8 +1296,8 @@
         /* --- THEME TOGGLE --- */
         function initTheme() {
             const savedTheme = state.ui.theme || 'dark';
-            const savedScheme = state.ui.colorScheme || 'purple';
-            const savedHighlight = state.ui.highlight || 'purple';
+            const savedScheme = state.ui.colorScheme || 'amethyst';
+            const savedHighlight = state.ui.highlight || 'amethyst';
             setTheme(savedTheme);
             applyColorScheme(savedScheme, savedHighlight);
             updateThemeButton();
@@ -1308,8 +1308,8 @@
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
             setTheme(newTheme);
             state.ui.theme = newTheme;
-            const currentScheme = state.ui.colorScheme || 'purple';
-            const currentHighlight = state.ui.highlight || 'purple';
+            const currentScheme = state.ui.colorScheme || 'amethyst';
+            const currentHighlight = state.ui.highlight || 'amethyst';
             applyColorScheme(currentScheme, currentHighlight);
             saveState();
             updateThemeButton();
@@ -1333,28 +1333,26 @@
         /* --- COLOR CUSTOMIZATION --- */
         const colorSchemes = {
             dark: {
-                purple: { bg_dark: '#05020a', bg_light: '#0d0615', accent: '#9d4edd', accent_glow: '#c77dff', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#c0c0c0', danger: '#ff5f5f', success: '#03dac6', name: 'Purple' },
-                blue: { bg_dark: '#050d1f', bg_light: '#0a1533', accent: '#4361ee', accent_glow: '#5a77f5', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#b0c4de', danger: '#ff5f5f', success: '#03dac6', name: 'Blue' },
-                pink: { bg_dark: '#25071f', bg_light: '#4d0a2d', accent: '#ff1493', accent_glow: '#ff69b4', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#ffb6d9', danger: '#ff1744', success: '#03dac6', name: 'Pink' },
-                green: { bg_dark: '#0a1f15', bg_light: '#0f3d29', accent: '#06d6a0', accent_glow: '#52e1b8', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#98d8c8', danger: '#ff5f5f', success: '#06d6a0', name: 'Green' },
-                amber: { bg_dark: '#1e1305', bg_light: '#3a2208', accent: '#ffb703', accent_glow: '#ffd166', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff9ec', text_muted: '#e6c892', danger: '#ff6b6b', success: '#16d3a5', name: 'Amber' },
-                cyan: { bg_dark: '#04161b', bg_light: '#082831', accent: '#00bcd4', accent_glow: '#4dd0e1', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#effcff', text_muted: '#9fd1d8', danger: '#ff6b6b', success: '#26d09f', name: 'Cyan' },
-                rose: { bg_dark: '#1a0a10', bg_light: '#31111d', accent: '#ff6f91', accent_glow: '#ff9db5', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff7fa', text_muted: '#e1a9ba', danger: '#ff4f72', success: '#20d09f', name: 'Rose' }
+                amethyst: { bg_dark: '#08040f', bg_light: '#140a22', accent: '#9d4edd', accent_glow: '#c77dff', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#c8b8e0', danger: '#ff5f5f', success: '#03dac6', name: 'Amethyst' },
+                sapphire: { bg_dark: '#041021', bg_light: '#0a1f3d', accent: '#2f5fd0', accent_glow: '#6f90ff', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#f4f8ff', text_muted: '#a8bfdc', danger: '#ff5f5f', success: '#03dac6', name: 'Sapphire' },
+                emerald: { bg_dark: '#07180f', bg_light: '#0f2d1c', accent: '#0f9d75', accent_glow: '#43c99e', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#f4fff8', text_muted: '#9ccfb9', danger: '#ff6b6b', success: '#0f9d75', name: 'Emerald' },
+                ruby: { bg_dark: '#1a070d', bg_light: '#34101a', accent: '#c92a4b', accent_glow: '#ef5c7a', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff5f7', text_muted: '#e2a4b2', danger: '#ff4f72', success: '#20d09f', name: 'Ruby' },
+                gold: { bg_dark: '#1a1204', bg_light: '#352308', accent: '#c9931a', accent_glow: '#e0bb55', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff9ec', text_muted: '#e6c892', danger: '#ff6b6b', success: '#16d3a5', name: 'Gold' }
             },
             light: {
-                purple: { bg_dark: '#f3e5ff', bg_light: '#ffffff', accent: '#7e57c2', accent_glow: '#9575cd', glass: 'rgba(126, 87, 194, 0.08)', glass_lighter: 'rgba(126, 87, 194, 0.12)', glass_border: 'rgba(126, 87, 194, 0.2)', text_main: '#1a0f35', text_muted: '#4a3d5f', danger: '#d32f2f', success: '#00897b', name: 'Purple' },
-                blue: { bg_dark: '#e1f5ff', bg_light: '#ffffff', accent: '#0288d1', accent_glow: '#039be5', glass: 'rgba(2, 136, 209, 0.08)', glass_lighter: 'rgba(2, 136, 209, 0.12)', glass_border: 'rgba(2, 136, 209, 0.2)', text_main: '#00286b', text_muted: '#004a99', danger: '#d32f2f', success: '#00897b', name: 'Blue' },
-                pink: { bg_dark: '#fce4ff', bg_light: '#ffffff', accent: '#d81b60', accent_glow: '#ec407a', glass: 'rgba(216, 27, 96, 0.08)', glass_lighter: 'rgba(216, 27, 96, 0.12)', glass_border: 'rgba(216, 27, 96, 0.2)', text_main: '#6a0030', text_muted: '#a01850', danger: '#c41c3b', success: '#00897b', name: 'Pink' },
-                green: { bg_dark: '#e0f7f4', bg_light: '#ffffff', accent: '#00897b', accent_glow: '#26a69a', glass: 'rgba(0, 137, 123, 0.08)', glass_lighter: 'rgba(0, 137, 123, 0.12)', glass_border: 'rgba(0, 137, 123, 0.2)', text_main: '#002520', text_muted: '#003d33', danger: '#d32f2f', success: '#00897b', name: 'Green' },
-                amber: { bg_dark: '#fff6df', bg_light: '#ffffff', accent: '#c98900', accent_glow: '#e0a824', glass: 'rgba(201, 137, 0, 0.08)', glass_lighter: 'rgba(201, 137, 0, 0.12)', glass_border: 'rgba(201, 137, 0, 0.2)', text_main: '#4b2f00', text_muted: '#7a5608', danger: '#c43b2f', success: '#0a8f7c', name: 'Amber' },
-                cyan: { bg_dark: '#e0f7fb', bg_light: '#ffffff', accent: '#008ba3', accent_glow: '#17a7bf', glass: 'rgba(0, 139, 163, 0.08)', glass_lighter: 'rgba(0, 139, 163, 0.12)', glass_border: 'rgba(0, 139, 163, 0.2)', text_main: '#00333b', text_muted: '#1f5963', danger: '#c43b2f', success: '#0a8f7c', name: 'Cyan' },
-                rose: { bg_dark: '#ffeef3', bg_light: '#ffffff', accent: '#c93f67', accent_glow: '#de5d82', glass: 'rgba(201, 63, 103, 0.08)', glass_lighter: 'rgba(201, 63, 103, 0.12)', glass_border: 'rgba(201, 63, 103, 0.2)', text_main: '#4a1022', text_muted: '#7d3049', danger: '#b53252', success: '#0a8f7c', name: 'Rose' }
+                amethyst: { bg_dark: '#f3ebff', bg_light: '#ffffff', accent: '#6f42c1', accent_glow: '#8b5dd3', glass: 'rgba(111, 66, 193, 0.08)', glass_lighter: 'rgba(111, 66, 193, 0.12)', glass_border: 'rgba(111, 66, 193, 0.2)', text_main: '#241344', text_muted: '#4f3d74', danger: '#d32f2f', success: '#00897b', name: 'Amethyst' },
+                sapphire: { bg_dark: '#e8f0ff', bg_light: '#ffffff', accent: '#1d4fb8', accent_glow: '#3d6dd2', glass: 'rgba(29, 79, 184, 0.08)', glass_lighter: 'rgba(29, 79, 184, 0.12)', glass_border: 'rgba(29, 79, 184, 0.2)', text_main: '#0e2658', text_muted: '#3a5692', danger: '#d32f2f', success: '#00897b', name: 'Sapphire' },
+                emerald: { bg_dark: '#e9f8f0', bg_light: '#ffffff', accent: '#0c7f5f', accent_glow: '#2d9f7f', glass: 'rgba(12, 127, 95, 0.08)', glass_lighter: 'rgba(12, 127, 95, 0.12)', glass_border: 'rgba(12, 127, 95, 0.2)', text_main: '#0f3a2a', text_muted: '#2f6b58', danger: '#d32f2f', success: '#0c7f5f', name: 'Emerald' },
+                ruby: { bg_dark: '#ffeef2', bg_light: '#ffffff', accent: '#b82a49', accent_glow: '#d04867', glass: 'rgba(184, 42, 73, 0.08)', glass_lighter: 'rgba(184, 42, 73, 0.12)', glass_border: 'rgba(184, 42, 73, 0.2)', text_main: '#5a1024', text_muted: '#874058', danger: '#b82a49', success: '#0a8f7c', name: 'Ruby' },
+                gold: { bg_dark: '#fff7e8', bg_light: '#ffffff', accent: '#a87406', accent_glow: '#c28e1b', glass: 'rgba(168, 116, 6, 0.08)', glass_lighter: 'rgba(168, 116, 6, 0.12)', glass_border: 'rgba(168, 116, 6, 0.2)', text_main: '#4d3205', text_muted: '#7a5b22', danger: '#c43b2f', success: '#0a8f7c', name: 'Gold' }
             }
         };
 
         function applyColorScheme(scheme, highlight) {
             const theme = document.documentElement.getAttribute('data-theme') || 'dark';
-            const colors = colorSchemes[theme][scheme];
+            const availableSchemes = Object.keys(colorSchemes[theme]);
+            const safeScheme = availableSchemes.includes(scheme) ? scheme : 'amethyst';
+            const colors = colorSchemes[theme][safeScheme];
             
             // Apply base color scheme
             document.documentElement.style.setProperty('--bg-dark', colors.bg_dark);
@@ -1369,33 +1367,28 @@
             
             // Apply highlight colors independently
             const highlightColors = {
-                purple: { accent: '#6b2fb5', accent_glow: '#8a4dd0' },
-                blue: { accent: '#1a3fd1', accent_glow: '#3a5fe8' },
-                pink: { accent: '#c41c5c', accent_glow: '#e84670' },
-                green: { accent: '#008866', accent_glow: '#1aa885' },
-                amber: { accent: '#cc8a00', accent_glow: '#e6aa2d' },
-                cyan: { accent: '#008ea6', accent_glow: '#2bb2ca' },
-                rose: { accent: '#c33f67', accent_glow: '#df6688' }
+                amethyst: { accent: '#6b2fb5', accent_glow: '#8a4dd0' },
+                sapphire: { accent: '#1d4fb8', accent_glow: '#3f73de' },
+                emerald: { accent: '#0e8b66', accent_glow: '#2fb58b' },
+                ruby: { accent: '#b92647', accent_glow: '#dc4c6f' },
+                gold: { accent: '#b47b00', accent_glow: '#d9a62b' }
             };
             
             const highlightLight = {
-                purple: { accent: '#5e35b1', accent_glow: '#7e57c2' },
-                blue: { accent: '#0066cc', accent_glow: '#0288d1' },
-                pink: { accent: '#b91c5c', accent_glow: '#d81b60' },
-                green: { accent: '#006b5a', accent_glow: '#00897b' },
-                amber: { accent: '#ad7400', accent_glow: '#c98d1a' },
-                cyan: { accent: '#006f85', accent_glow: '#008ba3' },
-                rose: { accent: '#a93457', accent_glow: '#c45173' }
+                amethyst: { accent: '#5e35b1', accent_glow: '#7e57c2' },
+                sapphire: { accent: '#1d4fb8', accent_glow: '#3d6dd2' },
+                emerald: { accent: '#0c7f5f', accent_glow: '#2d9f7f' },
+                ruby: { accent: '#a62945', accent_glow: '#c84866' },
+                gold: { accent: '#9f6f08', accent_glow: '#bc8a1f' }
             };
 
             const activeHighlightSet = theme === 'light' ? highlightLight : highlightColors;
-            if (activeHighlightSet[highlight]) {
-                document.documentElement.style.setProperty('--accent', activeHighlightSet[highlight].accent);
-                document.documentElement.style.setProperty('--accent-glow', activeHighlightSet[highlight].accent_glow);
-            }
+            const safeHighlight = activeHighlightSet[highlight] ? highlight : 'amethyst';
+            document.documentElement.style.setProperty('--accent', activeHighlightSet[safeHighlight].accent);
+            document.documentElement.style.setProperty('--accent-glow', activeHighlightSet[safeHighlight].accent_glow);
 
-            state.ui.colorScheme = scheme;
-            state.ui.highlight = highlight;
+            state.ui.colorScheme = safeScheme;
+            state.ui.highlight = safeHighlight;
             saveState();
             updateColorOptions();
         }
@@ -1413,8 +1406,8 @@
             const theme = document.documentElement.getAttribute('data-theme') || 'dark';
             const schemeContainer = document.getElementById('scheme-options');
             const highlightContainer = document.getElementById('highlight-options');
-            const currentScheme = state.ui.colorScheme || 'purple';
-            const currentHighlight = state.ui.highlight || 'purple';
+            const currentScheme = state.ui.colorScheme || 'amethyst';
+            const currentHighlight = state.ui.highlight || 'amethyst';
 
             schemeContainer.innerHTML = '';
             highlightContainer.innerHTML = '';
@@ -1428,29 +1421,25 @@
                 swatchDiv.className = 'color-swatch';
                 swatchDiv.style.background = `linear-gradient(135deg, ${colors.bg_dark}, ${colors.bg_light})`;
                 schemeBtn.appendChild(swatchDiv);
-                schemeBtn.onclick = () => applyColorScheme(key, state.ui.highlight || 'purple');
+                schemeBtn.onclick = () => applyColorScheme(key, state.ui.highlight || 'amethyst');
                 schemeContainer.appendChild(schemeBtn);
             }
 
             // Populate highlight colors with circular color swatches (independent from scheme)
             const highlightColorsDark = {
-                purple: '#6b2fb5',
-                blue: '#1a3fd1',
-                pink: '#c41c5c',
-                green: '#008866',
-                amber: '#cc8a00',
-                cyan: '#008ea6',
-                rose: '#c33f67'
+                amethyst: '#6b2fb5',
+                sapphire: '#1d4fb8',
+                emerald: '#0e8b66',
+                ruby: '#b92647',
+                gold: '#b47b00'
             };
             
             const highlightColorsLight = {
-                purple: '#5e35b1',
-                blue: '#0066cc',
-                pink: '#b91c5c',
-                green: '#006b5a',
-                amber: '#ad7400',
-                cyan: '#006f85',
-                rose: '#a93457'
+                amethyst: '#5e35b1',
+                sapphire: '#1d4fb8',
+                emerald: '#0c7f5f',
+                ruby: '#a62945',
+                gold: '#9f6f08'
             };
             
             const highlightSet = theme === 'light' ? highlightColorsLight : highlightColorsDark;
@@ -1463,15 +1452,15 @@
                 swatchDiv.className = 'color-swatch';
                 swatchDiv.style.background = color;
                 highlightBtn.appendChild(swatchDiv);
-                highlightBtn.onclick = () => applyColorScheme(state.ui.colorScheme || 'purple', key);
+                highlightBtn.onclick = () => applyColorScheme(state.ui.colorScheme || 'amethyst', key);
                 highlightContainer.appendChild(highlightBtn);
             }
         }
 
         function updateColorOptions() {
             const theme = document.documentElement.getAttribute('data-theme') || 'dark';
-            const currentScheme = state.ui.colorScheme || 'purple';
-            const currentHighlight = state.ui.highlight || 'purple';
+            const currentScheme = state.ui.colorScheme || 'amethyst';
+            const currentHighlight = state.ui.highlight || 'amethyst';
             const schemeContainer = document.getElementById('scheme-options');
             const highlightContainer = document.getElementById('highlight-options');
             
@@ -1491,21 +1480,17 @@
             if (highlightContainer) {
                 const highlightButtons = highlightContainer.querySelectorAll('.color-option');
                 const highlightPalette = theme === 'light' ? {
-                    purple: '#5e35b1',
-                    blue: '#0066cc',
-                    pink: '#b91c5c',
-                    green: '#006b5a',
-                    amber: '#ad7400',
-                    cyan: '#006f85',
-                    rose: '#a93457'
+                    amethyst: '#5e35b1',
+                    sapphire: '#1d4fb8',
+                    emerald: '#0c7f5f',
+                    ruby: '#a62945',
+                    gold: '#9f6f08'
                 } : {
-                    purple: '#6b2fb5',
-                    blue: '#1a3fd1',
-                    pink: '#c41c5c',
-                    green: '#008866',
-                    amber: '#cc8a00',
-                    cyan: '#008ea6',
-                    rose: '#c33f67'
+                    amethyst: '#6b2fb5',
+                    sapphire: '#1d4fb8',
+                    emerald: '#0e8b66',
+                    ruby: '#b92647',
+                    gold: '#b47b00'
                 };
                 const highlightKeys = Object.keys(highlightPalette);
                 highlightButtons.forEach((btn, idx) => {
