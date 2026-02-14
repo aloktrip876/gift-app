@@ -15,11 +15,15 @@
     <header>
         <h1>✨ Shreya’s Secret Chests</h1>
         <p>A digital journey of surprises, unlocked one key at a time.</p>
+        <div id="user-session-info" style="display:none; margin-top:0.8rem; font-size:0.85rem; color:var(--text-muted);">
+            Logged in as <strong id="session-user-name" style="color:var(--accent);"></strong>
+        </div>
     </header>
 
 
     <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
     <button id="customize-btn" onclick="openCustomizeModal()" title="Customize colors">⚙️</button>
+    <button id="logout-btn" onclick="logoutUser()" title="Logout" style="display:none;">⎋</button>
 
     <!-- Customize Modal -->
     <div id="customize-modal">
@@ -43,6 +47,22 @@
                     <!-- Populated by JavaScript -->
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay active" id="login-modal">
+        <div class="modal-content">
+            <h2 style="color: var(--accent);">Secure Login</h2>
+            <p style="margin: 0.8rem 0 1rem 0; color: var(--text-muted);">Enter your full name and phone number.</p>
+            <div class="input-group" style="margin-top:0;">
+                <input type="text" id="login-name" class="chest-input" placeholder="Your name" style="text-transform:none; font-family:'Poppins',sans-serif;">
+            </div>
+            <div class="input-group">
+                <input type="text" id="login-phone" class="chest-input" placeholder="Phone number" inputmode="numeric" style="text-transform:none; font-family:monospace;">
+            </div>
+            <button class="btn" style="margin-top:1rem; width:100%;" onclick="submitLogin()">Verify & Continue</button>
+            <p id="login-status" style="margin-top:0.8rem; font-size:0.85rem; color: var(--text-muted);"></p>
+            <p id="login-attempts" style="margin-top:0.5rem; font-size:0.8rem; color: var(--danger);"></p>
         </div>
     </div>
 
@@ -100,9 +120,12 @@
 
             <div id="admin-panel" class="glass-panel">
                 <h3 style="color: var(--danger);">Admin Control</h3>
+                <input type="password" id="admin-key-input" class="chest-input" placeholder="ADMIN KEY" style="margin-top:0.8rem;">
                 <div style="display: grid; gap: 0.5rem; margin-top: 1rem;">
                     <button class="btn btn-sm" onclick="adminForceGenerate()">Force Generate Key</button>
                     <button class="btn btn-sm" onclick="adminForceReveal()">Force Reveal Pending</button>
+                    <button class="btn btn-sm" onclick="openUserManager()">Manage Users</button>
+                    <button class="btn btn-sm" onclick="openAnalyticsManager()">Analytics</button>
                     <button class="btn btn-sm btn-danger" onclick="adminResetAll()">RESET ALL DATA</button>
                 </div>
                 <div class="admin-log" id="admin-log">
@@ -110,6 +133,60 @@
                 </div>
             </div>
         </aside>
+    </div>
+
+    <div class="modal-overlay" id="user-manager-modal">
+        <div class="modal-content" style="max-width: 760px; text-align: left;">
+            <h2 style="color: var(--accent); margin-bottom: 0.8rem;">User Manager</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">Create or update users in Google Sheet (LoginInfo).</p>
+            <div style="display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:0.7rem;">
+                <input id="um-user-id" class="chest-input" placeholder="user_id">
+                <input id="um-name" class="chest-input" placeholder="name" style="text-transform:none;font-family:'Poppins',sans-serif;">
+                <input id="um-phone" class="chest-input" placeholder="phone">
+                <input id="um-page-title" class="chest-input" placeholder="page_title" style="text-transform:none;font-family:'Poppins',sans-serif;">
+                <select id="um-active" class="chest-input" style="font-family:'Poppins',sans-serif; text-transform:none;">
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+                <input id="um-notes" class="chest-input" placeholder="notes" style="text-transform:none;font-family:'Poppins',sans-serif;">
+            </div>
+            <textarea id="um-content-json" class="chest-input" placeholder='contentProfile JSON, e.g. {"headerTitle":"...","chestOverrides":[...]}' style="margin-top:0.7rem; min-height:120px; width:100%; text-transform:none; font-family:monospace; text-align:left;"></textarea>
+            <div style="display:flex; gap:0.6rem; margin-top:0.8rem;">
+                <button class="btn btn-sm" onclick="saveManagedUser()">Save User</button>
+                <button class="btn btn-sm" onclick="refreshManagedUsers()">Refresh</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteManagedUser()">Delete by user_id</button>
+                <button class="btn btn-sm" onclick="closeUserManager()">Close</button>
+            </div>
+            <p id="um-status" style="margin-top:0.7rem; font-size:0.82rem; color:var(--text-muted);"></p>
+            <div id="um-list" class="admin-log" style="max-height:220px; margin-top:0.8rem;"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="analytics-modal">
+        <div class="modal-content" style="max-width: 900px; text-align: left;">
+            <h2 style="color: var(--accent); margin-bottom: 0.7rem;">Admin Analytics</h2>
+            <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:0.6rem; margin-bottom:0.8rem;">
+                <input id="an-from-ms" class="chest-input" type="datetime-local" placeholder="From" style="text-transform:none;" />
+                <input id="an-to-ms" class="chest-input" type="datetime-local" placeholder="To" style="text-transform:none;" />
+                <input id="an-user-id" class="chest-input" placeholder="user_id (optional)" style="text-transform:none;" />
+                <button class="btn btn-sm" onclick="loadAnalytics()">Apply Filters</button>
+            </div>
+            <div style="display:flex; gap:0.5rem; margin-bottom:0.8rem; flex-wrap:wrap;">
+                <button class="btn btn-sm" onclick="setAnalyticsPreset('today')">Today</button>
+                <button class="btn btn-sm" onclick="setAnalyticsPreset('7d')">Last 7d</button>
+                <button class="btn btn-sm" onclick="setAnalyticsPreset('30d')">Last 30d</button>
+                <button class="btn btn-sm" onclick="setAnalyticsPreset('clear')">Clear Dates</button>
+            </div>
+            <div style="display:flex; gap:0.5rem; margin-bottom:0.8rem;">
+                <button class="btn btn-sm" onclick="downloadAnalyticsSessionsCsv()">Export Sessions CSV</button>
+                <button class="btn btn-sm" onclick="closeAnalyticsManager()">Close</button>
+            </div>
+            <p id="an-status" style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.6rem;"></p>
+            <div id="an-summary" style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:0.6rem; margin-bottom:0.8rem;"></div>
+            <canvas id="an-chart" width="800" height="240" style="width:100%; background:var(--glass); border:1px solid var(--glass-border); border-radius:8px; margin-bottom:0.8rem;"></canvas>
+            <div id="an-table" class="admin-log" style="max-height:240px;"></div>
+            <div id="an-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:0.6rem; gap:0.5rem;"></div>
+        </div>
     </div>
 
     <div class="modal-overlay" id="tutorial-modal">

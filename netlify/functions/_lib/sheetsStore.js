@@ -7,9 +7,15 @@ const STORE_TAB = process.env.GOOGLE_STATE_TAB || "StateStore";
 const ADMIN_TAB = process.env.GOOGLE_SHEET_TAB || "States";
 const DASHBOARD_TAB = process.env.GOOGLE_DASHBOARD_TAB || "Dashboard";
 const ACCESS_TAB = process.env.GOOGLE_ACCESS_TAB || "AccessLog";
+const LOGIN_TAB = process.env.GOOGLE_LOGIN_TAB || "LoginInfo";
+const SESSION_TAB = process.env.GOOGLE_SESSION_TAB || "SessionLogs";
+const AUTH_LOCK_TAB = process.env.GOOGLE_AUTH_LOCK_TAB || "AuthLocks";
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 const SERVICE_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
 const SERVICE_KEY = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+const SESSION_COOKIE = "gift_session_id";
+const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 3);
+const LOGIN_LOCK_MINUTES = Number(process.env.LOGIN_LOCK_MINUTES || 30);
 
 function defaultState() {
     return {
@@ -20,6 +26,7 @@ function defaultState() {
         adminHistory: [],
         puzzleState: null,
         feedbackSent: null,
+        contentAccessTimes: {},
         ui: {
             theme: "dark",
             colorScheme: "purple",
@@ -27,6 +34,17 @@ function defaultState() {
         }
     };
 }
+
+const IST_FORMATTER = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+});
 
 function withStateDefaults(state) {
     const base = defaultState();
@@ -53,6 +71,26 @@ function parseCookies(cookieHeader) {
         cookies[k] = decodeURIComponent(v);
     }
     return cookies;
+}
+
+function normalizePhone(input) {
+    const digits = String(input || "").replace(/\D/g, "");
+    if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
+    if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1);
+    return digits;
+}
+
+function normalizeName(input) {
+    return String(input || "").trim().toLowerCase();
+}
+
+function parseJsonSafe(text, fallback) {
+    if (!text) return fallback;
+    try {
+        return JSON.parse(text);
+    } catch (err) {
+        return fallback;
+    }
 }
 
 function ensureClientId(headers) {
@@ -280,10 +318,28 @@ async function formatAdminTab(sheets, sheetId, rowCount, colCount) {
     });
 }
 
+async function getSessionAnalytics(sheets) {
+    const rows = await getSessionRows(sheets);
+    const totalSessions = rows.length;
+    const activeSessions = rows.filter((r) => (r.status || "").toUpperCase() === "ACTIVE").length;
+    const completed = rows.filter((r) => Number(r.durationSec || 0) > 0);
+    const avgDurationSec = completed.length
+        ? Math.round(completed.reduce((sum, r) => sum + Number(r.durationSec || 0), 0) / completed.length)
+        : 0;
+    const totalScreenSec = rows.reduce((sum, r) => sum + Number(r.screenTimeSec || 0), 0);
+    return {
+        totalSessions,
+        activeSessions,
+        avgDurationSec,
+        totalScreenSec
+    };
+}
+
 async function syncDashboardTab(sheets, states) {
     const dashboardSheetId = await ensureTab(sheets, DASHBOARD_TAB);
     await clearBanding(sheets, dashboardSheetId);
     const adminRef = `'${ADMIN_TAB.replace(/'/g, "''")}'`;
+    const sessionStats = await getSessionAnalytics(sheets);
     const totalUsers = states.length;
     const progressPercents = states.map((entry) => {
         const chests = Array.isArray(entry.state && entry.state.chests) ? entry.state.chests : [];
@@ -311,11 +367,14 @@ async function syncDashboardTab(sheets, states) {
                 ["Shreya Secret Chests - Admin Dashboard"],
                 [""],
                 ["Metric", "Value", "", "Progress Trend", "", "", "Theme Split", ""],
-                ["Total Users", totalUsers, "", `=SPARKLINE(${adminRef}!E2:E,{"charttype","column";"color","#5e35b1"})`, "", "", "Dark", `=COUNTIF(${adminRef}!K2:K,"dark")`],
-                ["Average Progress", avgProgress, "", "", "", "", "Light", `=COUNTIF(${adminRef}!K2:K,"light")`],
+                ["Total Users", totalUsers, "", `=SPARKLINE(${adminRef}!E2:E,{"charttype","column";"color","#5e35b1"})`, "", "", "Dark", `=COUNTIF(${adminRef}!L2:L,"dark")`],
+                ["Average Progress", avgProgress, "", "", "", "", "Light", `=COUNTIF(${adminRef}!L2:L,"light")`],
                 ["Completed Users", completedUsers],
                 ["Users With Pending Key", pendingUsers],
-                ["Feedback Given", feedbackGiven]
+                ["Feedback Given", feedbackGiven],
+                ["Total Sessions", sessionStats.totalSessions, "", "", "", "", "Active Sessions", sessionStats.activeSessions],
+                ["Avg Session Duration (sec)", sessionStats.avgDurationSec],
+                ["Total Screen Time (sec)", sessionStats.totalScreenSec]
             ]
         }
     });
@@ -371,7 +430,7 @@ async function syncDashboardTab(sheets, states) {
                 },
                 {
                     repeatCell: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 3, endRowIndex: 8, startColumnIndex: 0, endColumnIndex: 2 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 3, endRowIndex: 11, startColumnIndex: 0, endColumnIndex: 2 },
                         cell: {
                             userEnteredFormat: {
                                 backgroundColor: DASH_COLORS.bg,
@@ -397,7 +456,7 @@ async function syncDashboardTab(sheets, states) {
                 },
                 {
                     repeatCell: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 5, endRowIndex: 8, startColumnIndex: 0, endColumnIndex: 2 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 5, endRowIndex: 11, startColumnIndex: 0, endColumnIndex: 2 },
                         cell: { userEnteredFormat: { backgroundColor: DASH_COLORS.warningSoft } },
                         fields: "userEnteredFormat.backgroundColor"
                     }
@@ -411,7 +470,7 @@ async function syncDashboardTab(sheets, states) {
                 },
                 {
                     updateBorders: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 2, endRowIndex: 8, startColumnIndex: 0, endColumnIndex: 8 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 2, endRowIndex: 11, startColumnIndex: 0, endColumnIndex: 8 },
                         top: { style: "SOLID", color: DASH_COLORS.border },
                         bottom: { style: "SOLID", color: DASH_COLORS.border },
                         left: { style: "SOLID", color: DASH_COLORS.border },
@@ -479,14 +538,14 @@ async function ensureStoreHeader(sheets) {
         range: `${STORE_TAB}!A1:C1`
     });
     const row = (headerRes.data.values && headerRes.data.values[0]) || [];
-    const ok = row[0] === "client_id" && row[1] === "updated_at" && row[2] === "state_json";
+    const ok = (row[0] === "user_id" || row[0] === "client_id") && row[1] === "updated_at" && row[2] === "state_json";
     if (!ok) {
         await sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEET_ID,
             range: `${STORE_TAB}!A1:C1`,
             valueInputOption: "RAW",
             requestBody: {
-                values: [["client_id", "updated_at", "state_json"]]
+                values: [["user_id", "updated_at", "state_json"]]
             }
         });
     }
@@ -496,30 +555,108 @@ async function ensureAccessHeader(sheets) {
     await ensureTab(sheets, ACCESS_TAB);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${ACCESS_TAB}!A1:D1`
+        range: `${ACCESS_TAB}!A1:E1`
     });
     const row = (headerRes.data.values && headerRes.data.values[0]) || [];
-    const ok = row[0] === "accessed_at_iso" && row[1] === "accessed_at_ms" && row[2] === "client_id" && row[3] === "event";
+    const ok = row[0] === "accessed_at_ist" && row[1] === "accessed_at_ms" && row[2] === "user_id" && row[3] === "session_id" && row[4] === "event";
     if (!ok) {
         await sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${ACCESS_TAB}!A1:D1`,
+            range: `${ACCESS_TAB}!A1:E1`,
             valueInputOption: "RAW",
             requestBody: {
-                values: [["accessed_at_iso", "accessed_at_ms", "client_id", "event"]]
+                values: [["accessed_at_ist", "accessed_at_ms", "user_id", "session_id", "event"]]
             }
         });
     }
 }
 
-async function logAccessEvent(clientId, eventType = "visit") {
+async function ensureLoginHeader(sheets) {
+    await ensureTab(sheets, LOGIN_TAB);
+    const headerRes = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${LOGIN_TAB}!A1:G1`
+    });
+    const row = (headerRes.data.values && headerRes.data.values[0]) || [];
+    const expected = ["user_id", "name", "phone", "is_active", "page_title", "content_json", "notes"];
+    const ok = expected.every((v, i) => row[i] === v);
+    if (!ok) {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${LOGIN_TAB}!A1:G1`,
+            valueInputOption: "RAW",
+            requestBody: { values: [expected] }
+        });
+    }
+}
+
+async function ensureSessionHeader(sheets) {
+    await ensureTab(sheets, SESSION_TAB);
+    const headerRes = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${SESSION_TAB}!A1:L1`
+    });
+    const row = (headerRes.data.values && headerRes.data.values[0]) || [];
+    const expected = [
+        "session_id",
+        "user_id",
+        "name",
+        "phone",
+        "login_time_ist",
+        "login_time_ms",
+        "logout_time_ist",
+        "logout_time_ms",
+        "duration_sec",
+        "screen_time_sec",
+        "last_seen_ist",
+        "status"
+    ];
+    const ok = expected.every((v, i) => row[i] === v);
+    if (!ok) {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${SESSION_TAB}!A1:L1`,
+            valueInputOption: "RAW",
+            requestBody: { values: [expected] }
+        });
+    }
+}
+
+async function ensureAuthLockHeader(sheets) {
+    await ensureTab(sheets, AUTH_LOCK_TAB);
+    const headerRes = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${AUTH_LOCK_TAB}!A1:G1`
+    });
+    const row = (headerRes.data.values && headerRes.data.values[0]) || [];
+    const expected = [
+        "lock_key",
+        "fail_count",
+        "lock_until_ms",
+        "lock_until_ist",
+        "last_failed_ist",
+        "last_name",
+        "last_phone"
+    ];
+    const ok = expected.every((v, i) => row[i] === v);
+    if (!ok) {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${AUTH_LOCK_TAB}!A1:G1`,
+            valueInputOption: "RAW",
+            requestBody: { values: [expected] }
+        });
+    }
+}
+
+async function logAccessEvent(userId, eventType = "visit", sessionId = "") {
     const sheets = await getSheets();
     const now = Date.now();
-    const values = [[new Date(now).toISOString(), now, clientId, eventType]];
+    const values = [[formatIst(now), now, userId, sessionId, eventType]];
     try {
         await sheets.spreadsheets.values.append({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${ACCESS_TAB}!A:D`,
+            range: `${ACCESS_TAB}!A:E`,
             valueInputOption: "RAW",
             insertDataOption: "INSERT_ROWS",
             requestBody: { values }
@@ -529,12 +666,463 @@ async function logAccessEvent(clientId, eventType = "visit") {
         await ensureAccessHeader(sheets);
         await sheets.spreadsheets.values.append({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${ACCESS_TAB}!A:D`,
+            range: `${ACCESS_TAB}!A:E`,
             valueInputOption: "RAW",
             insertDataOption: "INSERT_ROWS",
             requestBody: { values }
         });
     }
+}
+
+async function getLoginRows(sheets) {
+    await ensureLoginHeader(sheets);
+    const res = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${LOGIN_TAB}!A2:G`
+    });
+    const values = res.data.values || [];
+    return values.map((r, idx) => ({
+        rowNumber: idx + 2,
+        userId: String(r[0] || "").trim(),
+        name: String(r[1] || "").trim(),
+        phone: String(r[2] || "").trim(),
+        isActive: String(r[3] || "true").trim(),
+        pageTitle: String(r[4] || "").trim(),
+        contentJson: String(r[5] || "").trim(),
+        notes: String(r[6] || "").trim()
+    })).filter((r) => !!r.userId);
+}
+
+function getLockKey(name, phone) {
+    const n = normalizeName(name);
+    const p = normalizePhone(phone);
+    if (p) return `p:${p}`;
+    if (n) return `n:${n}`;
+    return "";
+}
+
+async function getAuthLockRows(sheets) {
+    await ensureAuthLockHeader(sheets);
+    const res = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${AUTH_LOCK_TAB}!A2:G`
+    });
+    const values = res.data.values || [];
+    return values.map((r, idx) => ({
+        rowNumber: idx + 2,
+        lockKey: String(r[0] || "").trim(),
+        failCount: Number(r[1] || 0),
+        lockUntilMs: Number(r[2] || 0),
+        lockUntilIst: String(r[3] || ""),
+        lastFailedIst: String(r[4] || ""),
+        lastName: String(r[5] || ""),
+        lastPhone: String(r[6] || "")
+    })).filter((r) => !!r.lockKey);
+}
+
+async function getAuthLockForIdentity(name, phone) {
+    const lockKey = getLockKey(name, phone);
+    if (!lockKey) return null;
+    const sheets = await getSheets();
+    const rows = await getAuthLockRows(sheets);
+    return rows.find((r) => r.lockKey === lockKey) || null;
+}
+
+async function upsertAuthLock(lockKey, data) {
+    if (!lockKey) return;
+    const sheets = await getSheets();
+    const rows = await getAuthLockRows(sheets);
+    const existing = rows.find((r) => r.lockKey === lockKey);
+    const payload = [[
+        lockKey,
+        Number(data.failCount || 0),
+        Number(data.lockUntilMs || 0),
+        data.lockUntilMs ? formatIst(data.lockUntilMs) : "",
+        data.lastFailedMs ? formatIst(data.lastFailedMs) : "",
+        String(data.lastName || ""),
+        String(data.lastPhone || "")
+    ]];
+    if (existing) {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${AUTH_LOCK_TAB}!A${existing.rowNumber}:G${existing.rowNumber}`,
+            valueInputOption: "RAW",
+            requestBody: { values: payload }
+        });
+    } else {
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${AUTH_LOCK_TAB}!A:G`,
+            valueInputOption: "RAW",
+            insertDataOption: "INSERT_ROWS",
+            requestBody: { values: payload }
+        });
+    }
+}
+
+async function clearAuthLock(name, phone) {
+    const lockKey = getLockKey(name, phone);
+    if (!lockKey) return;
+    await upsertAuthLock(lockKey, {
+        failCount: 0,
+        lockUntilMs: 0,
+        lastFailedMs: Date.now(),
+        lastName: String(name || ""),
+        lastPhone: String(phone || "")
+    });
+}
+
+async function getLoginLockState(name, phone) {
+    const lock = await getAuthLockForIdentity(name, phone);
+    if (!lock) return { locked: false, attemptsLeft: LOGIN_MAX_ATTEMPTS };
+    const now = Date.now();
+    if ((lock.lockUntilMs || 0) > now) {
+        return {
+            locked: true,
+            attemptsLeft: 0,
+            retryAfterSec: Math.ceil((lock.lockUntilMs - now) / 1000),
+            lockUntilIst: lock.lockUntilIst
+        };
+    }
+    const failCount = Number(lock.failCount || 0);
+    return {
+        locked: false,
+        attemptsLeft: Math.max(0, LOGIN_MAX_ATTEMPTS - failCount),
+        failCount
+    };
+}
+
+async function registerLoginFailure(name, phone) {
+    const lockKey = getLockKey(name, phone);
+    if (!lockKey) {
+        return { locked: false, attemptsLeft: LOGIN_MAX_ATTEMPTS };
+    }
+    const current = await getAuthLockForIdentity(name, phone);
+    const now = Date.now();
+    const activeLock = current && (current.lockUntilMs || 0) > now;
+    if (activeLock) {
+        return {
+            locked: true,
+            attemptsLeft: 0,
+            retryAfterSec: Math.ceil((current.lockUntilMs - now) / 1000),
+            lockUntilIst: current.lockUntilIst
+        };
+    }
+    const nextFailCount = Math.max(0, Number(current ? current.failCount : 0)) + 1;
+    const shouldLock = nextFailCount >= LOGIN_MAX_ATTEMPTS;
+    const lockUntilMs = shouldLock ? (now + LOGIN_LOCK_MINUTES * 60 * 1000) : 0;
+    await upsertAuthLock(lockKey, {
+        failCount: shouldLock ? 0 : nextFailCount,
+        lockUntilMs,
+        lastFailedMs: now,
+        lastName: String(name || ""),
+        lastPhone: normalizePhone(phone)
+    });
+    if (shouldLock) {
+        return {
+            locked: true,
+            attemptsLeft: 0,
+            retryAfterSec: LOGIN_LOCK_MINUTES * 60,
+            lockUntilIst: formatIst(lockUntilMs)
+        };
+    }
+    return {
+        locked: false,
+        attemptsLeft: Math.max(0, LOGIN_MAX_ATTEMPTS - nextFailCount),
+        failCount: nextFailCount
+    };
+}
+
+function parseUserContentProfile(loginRow) {
+    const profile = parseJsonSafe(loginRow.contentJson, {});
+    return {
+        userId: loginRow.userId,
+        name: loginRow.name,
+        phone: loginRow.phone,
+        pageTitle: loginRow.pageTitle || "",
+        contentProfile: profile && typeof profile === "object" ? profile : {}
+    };
+}
+
+async function getUserById(userId) {
+    if (!userId) return null;
+    const sheets = await getSheets();
+    const rows = await getLoginRows(sheets);
+    const found = rows.find((r) => r.userId === userId);
+    return found ? parseUserContentProfile(found) : null;
+}
+
+function sanitizeLoginUserInput(input) {
+    const userId = String(input.userId || "").trim();
+    const name = String(input.name || "").trim();
+    const phone = normalizePhone(input.phone || "");
+    const isActive = String(input.isActive === false ? "false" : input.isActive || "true").toLowerCase();
+    const pageTitle = String(input.pageTitle || "").trim();
+    const notes = String(input.notes || "").trim();
+    const contentProfile = input.contentProfile && typeof input.contentProfile === "object" ? input.contentProfile : {};
+    if (!userId) throw new Error("userId is required");
+    if (!name) throw new Error("name is required");
+    if (!phone) throw new Error("phone is required");
+    return {
+        userId,
+        name,
+        phone,
+        isActive: (isActive === "false" || isActive === "0" || isActive === "no") ? "false" : "true",
+        pageTitle,
+        contentJson: JSON.stringify(contentProfile || {}),
+        notes
+    };
+}
+
+async function listLoginUsers() {
+    const sheets = await getSheets();
+    const rows = await getLoginRows(sheets);
+    return rows.map((r) => ({
+        userId: r.userId,
+        name: r.name,
+        phone: r.phone,
+        isActive: !["false", "0", "no"].includes(String(r.isActive || "").toLowerCase()),
+        pageTitle: r.pageTitle,
+        contentProfile: parseJsonSafe(r.contentJson, {}),
+        notes: r.notes
+    }));
+}
+
+async function upsertLoginUser(input) {
+    const payload = sanitizeLoginUserInput(input);
+    const sheets = await getSheets();
+    const rows = await getLoginRows(sheets);
+    const existing = rows.find((r) => r.userId === payload.userId);
+    const values = [[
+        payload.userId,
+        payload.name,
+        payload.phone,
+        payload.isActive,
+        payload.pageTitle,
+        payload.contentJson,
+        payload.notes
+    ]];
+    if (existing) {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${LOGIN_TAB}!A${existing.rowNumber}:G${existing.rowNumber}`,
+            valueInputOption: "RAW",
+            requestBody: { values }
+        });
+    } else {
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${LOGIN_TAB}!A:G`,
+            valueInputOption: "RAW",
+            insertDataOption: "INSERT_ROWS",
+            requestBody: { values }
+        });
+    }
+    return {
+        userId: payload.userId,
+        name: payload.name,
+        phone: payload.phone,
+        isActive: payload.isActive === "true",
+        pageTitle: payload.pageTitle,
+        contentProfile: parseJsonSafe(payload.contentJson, {}),
+        notes: payload.notes
+    };
+}
+
+async function deleteLoginUser(userId) {
+    const id = String(userId || "").trim();
+    if (!id) throw new Error("userId is required");
+    const sheets = await getSheets();
+    const rows = await getLoginRows(sheets);
+    const existing = rows.find((r) => r.userId === id);
+    if (!existing) return { ok: true, deleted: false };
+
+    await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        requestBody: {
+            requests: [{
+                deleteDimension: {
+                    range: {
+                        sheetId: await ensureTab(sheets, LOGIN_TAB),
+                        dimension: "ROWS",
+                        startIndex: existing.rowNumber - 1,
+                        endIndex: existing.rowNumber
+                    }
+                }
+            }]
+        }
+    });
+    return { ok: true, deleted: true };
+}
+
+async function verifyLoginIdentity(name, phone) {
+    const lockState = await getLoginLockState(name, phone);
+    if (lockState.locked) {
+        return {
+            ok: false,
+            reason: "LOCKED",
+            ...lockState
+        };
+    }
+
+    const sheets = await getSheets();
+    const rows = await getLoginRows(sheets);
+    const targetName = normalizeName(name);
+    const targetPhone = normalizePhone(phone);
+    if (!targetName || !targetPhone) {
+        const failure = await registerLoginFailure(name, phone);
+        return {
+            ok: false,
+            reason: "INVALID_INPUT",
+            ...failure
+        };
+    }
+    const found = rows.find((r) => {
+        const activeText = (r.isActive || "true").toLowerCase();
+        const isActive = activeText === "" || activeText === "true" || activeText === "yes" || activeText === "1";
+        return isActive && normalizeName(r.name) === targetName && normalizePhone(r.phone) === targetPhone;
+    });
+    if (!found) {
+        const failure = await registerLoginFailure(name, phone);
+        return {
+            ok: false,
+            reason: "NO_MATCH",
+            ...failure
+        };
+    }
+    await clearAuthLock(name, phone);
+    return {
+        ok: true,
+        user: parseUserContentProfile(found)
+    };
+}
+
+async function getSessionRows(sheets) {
+    await ensureSessionHeader(sheets);
+    const res = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${SESSION_TAB}!A2:L`
+    });
+    const values = res.data.values || [];
+    return values.map((r, idx) => ({
+        rowNumber: idx + 2,
+        sessionId: r[0] || "",
+        userId: r[1] || "",
+        name: r[2] || "",
+        phone: r[3] || "",
+        loginIst: r[4] || "",
+        loginMs: Number(r[5] || 0),
+        logoutIst: r[6] || "",
+        logoutMs: Number(r[7] || 0),
+        durationSec: Number(r[8] || 0),
+        screenTimeSec: Number(r[9] || 0),
+        lastSeenIst: r[10] || "",
+        status: r[11] || ""
+    }));
+}
+
+async function createUserSession(user) {
+    const sheets = await getSheets();
+    const now = Date.now();
+    const sessionId = crypto.randomUUID();
+    const row = [[
+        sessionId,
+        user.userId,
+        user.name,
+        user.phone,
+        formatIst(now),
+        now,
+        "",
+        "",
+        "",
+        0,
+        formatIst(now),
+        "ACTIVE"
+    ]];
+    await ensureSessionHeader(sheets);
+    await sheets.spreadsheets.values.append({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${SESSION_TAB}!A:L`,
+        valueInputOption: "RAW",
+        insertDataOption: "INSERT_ROWS",
+        requestBody: { values: row }
+    });
+    return { sessionId, createdAtMs: now };
+}
+
+async function getSessionById(sessionId) {
+    if (!sessionId) return null;
+    const sheets = await getSheets();
+    const rows = await getSessionRows(sheets);
+    return rows.find((r) => r.sessionId === sessionId && r.status === "ACTIVE") || null;
+}
+
+async function touchSession(sessionId) {
+    const session = await getSessionById(sessionId);
+    if (!session) return null;
+    const sheets = await getSheets();
+    const now = Date.now();
+    await sheets.spreadsheets.values.update({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${SESSION_TAB}!K${session.rowNumber}:K${session.rowNumber}`,
+        valueInputOption: "RAW",
+        requestBody: { values: [[formatIst(now)]] }
+    });
+    return { ...session, lastSeenIst: formatIst(now) };
+}
+
+async function closeSession(sessionId, screenTimeSec = 0) {
+    const session = await getSessionById(sessionId);
+    if (!session) return null;
+    const sheets = await getSheets();
+    const now = Date.now();
+    const durationSec = Math.max(0, Math.floor((now - (session.loginMs || now)) / 1000));
+    await sheets.spreadsheets.values.update({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${SESSION_TAB}!G${session.rowNumber}:L${session.rowNumber}`,
+        valueInputOption: "RAW",
+        requestBody: {
+            values: [[
+                formatIst(now),
+                now,
+                durationSec,
+                Math.max(0, Number(screenTimeSec || 0)),
+                formatIst(now),
+                "LOGGED_OUT"
+            ]]
+        }
+    });
+    return { ...session, logoutMs: now, durationSec };
+}
+
+function readSessionIdFromHeaders(headers) {
+    const cookies = parseCookies(headers && (headers.cookie || headers.Cookie));
+    return cookies[SESSION_COOKIE] || "";
+}
+
+async function getAuthenticatedSession(headers) {
+    const sessionId = readSessionIdFromHeaders(headers);
+    if (!sessionId) return null;
+    const session = await getSessionById(sessionId);
+    if (!session) return null;
+    const user = await getUserById(session.userId);
+    if (!user) return null;
+    return {
+        sessionId: session.sessionId,
+        userId: session.userId,
+        name: user.name,
+        phone: user.phone,
+        pageTitle: user.pageTitle,
+        contentProfile: user.contentProfile
+    };
+}
+
+function buildSessionCookie(sessionId) {
+    return `${SESSION_COOKIE}=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`;
+}
+
+function clearSessionCookie() {
+    return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }
 
 async function getStoreRows(sheets) {
@@ -612,12 +1200,21 @@ async function upsertClientState(clientId, nextState) {
 
 function toIso(ms) {
     if (!ms || Number.isNaN(Number(ms))) return "";
-    try { return new Date(Number(ms)).toISOString(); } catch (err) { return ""; }
+    return formatIst(ms);
+}
+
+function formatIst(ms) {
+    if (!ms || Number.isNaN(Number(ms))) return "";
+    try {
+        return IST_FORMATTER.format(new Date(Number(ms))).replace(",", "");
+    } catch (err) {
+        return "";
+    }
 }
 
 function buildAdminTable(states) {
     const headers = [
-        "client_id",
+        "user_id",
         "last_updated",
         "tutorial_seen",
         "progress",
@@ -627,6 +1224,7 @@ function buildAdminTable(states) {
         "pending_key_revealed",
         "last_key_generated",
         "feedback",
+        "content_access_times",
         "theme",
         "color_scheme",
         "highlight"
@@ -640,6 +1238,16 @@ function buildAdminTable(states) {
         const total = allChests.length;
         const progress = total > 0 ? `${unlocked}/${total}` : "0/0";
         const progressPercent = total > 0 ? unlocked / total : 0;
+        const feedback = (() => {
+            if (!s.feedbackSent) return "";
+            if (typeof s.feedbackSent === "string") return s.feedbackSent;
+            if (typeof s.feedbackSent === "object") {
+                const t = s.feedbackSent.type || "";
+                const at = formatIst(s.feedbackSent.at);
+                return at ? `${t} (${at})` : t;
+            }
+            return "";
+        })();
         return [
             entry.clientId,
             toIso(entry.updatedAt),
@@ -650,7 +1258,8 @@ function buildAdminTable(states) {
             s.pendingKey ? (s.pendingKey.targetChestId || "") : "",
             s.pendingKey ? (s.pendingKey.isRevealed ? "Yes" : "No") : "",
             toIso(s.lastGenerationTime),
-            s.feedbackSent || "",
+            feedback,
+            JSON.stringify(s.contentAccessTimes || {}),
             s.ui && s.ui.theme ? s.ui.theme : "",
             s.ui && s.ui.colorScheme ? s.ui.colorScheme : "",
             s.ui && s.ui.highlight ? s.ui.highlight : ""
@@ -741,6 +1350,151 @@ function buildAdminCsv(states) {
     return `${lines.join("\n")}\n`;
 }
 
+function toMs(value) {
+    const n = Number(value || 0);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function dayKeyFromMs(ms) {
+    if (!ms) return "";
+    const d = new Date(ms);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+
+async function getAccessRows(sheets) {
+    await ensureAccessHeader(sheets);
+    const res = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${ACCESS_TAB}!A2:E`
+    });
+    const values = res.data.values || [];
+    return values.map((r) => ({
+        atIst: String(r[0] || ""),
+        atMs: Number(r[1] || 0),
+        userId: String(r[2] || ""),
+        sessionId: String(r[3] || ""),
+        event: String(r[4] || "")
+    }));
+}
+
+async function getAdminAnalytics({ fromMs = 0, toMs: endMs = 0, userId = "" } = {}) {
+    const sheets = await getSheets();
+    const states = await listClientStates();
+    const sessions = await getSessionRows(sheets);
+    const access = await getAccessRows(sheets);
+    const from = Number(fromMs || 0);
+    const to = Number(endMs || 0);
+    const hasRange = !!(from || to);
+    const userFilter = String(userId || "").trim();
+
+    const inRange = (ms) => {
+        if (!hasRange) return true;
+        if (!ms) return false;
+        if (from && ms < from) return false;
+        if (to && ms > to) return false;
+        return true;
+    };
+
+    const sessionsFiltered = sessions.filter((s) => {
+        if (userFilter && s.userId !== userFilter) return false;
+        return inRange(toMs(s.loginMs));
+    });
+
+    const accessFiltered = access.filter((a) => {
+        if (userFilter && a.userId !== userFilter) return false;
+        return inRange(toMs(a.atMs));
+    });
+
+    const userSet = new Set(sessionsFiltered.map((s) => s.userId).filter(Boolean));
+    const totalSessions = sessionsFiltered.length;
+    const activeSessions = sessionsFiltered.filter((s) => (s.status || "").toUpperCase() === "ACTIVE").length;
+    const totalScreenSec = sessionsFiltered.reduce((sum, s) => sum + Number(s.screenTimeSec || 0), 0);
+    const avgDurationSec = totalSessions
+        ? Math.round(sessionsFiltered.reduce((sum, s) => sum + Number(s.durationSec || 0), 0) / totalSessions)
+        : 0;
+    const feedbackCount = states.filter((st) => !!(st.state && st.state.feedbackSent)).length;
+
+    const sessionsByDay = {};
+    const screenByDay = {};
+    for (const s of sessionsFiltered) {
+        const day = dayKeyFromMs(toMs(s.loginMs));
+        if (!day) continue;
+        sessionsByDay[day] = (sessionsByDay[day] || 0) + 1;
+        screenByDay[day] = (screenByDay[day] || 0) + Number(s.screenTimeSec || 0);
+    }
+
+    const eventsByType = {};
+    for (const ev of accessFiltered) {
+        const k = ev.event || "unknown";
+        eventsByType[k] = (eventsByType[k] || 0) + 1;
+    }
+
+    const sessionRows = sessionsFiltered.map((s) => ({
+        sessionId: s.sessionId,
+        userId: s.userId,
+        name: s.name,
+        phone: s.phone,
+        loginTimeIst: s.loginIst,
+        logoutTimeIst: s.logoutIst,
+        durationSec: Number(s.durationSec || 0),
+        screenTimeSec: Number(s.screenTimeSec || 0),
+        status: s.status || ""
+    }));
+
+    return {
+        filters: { fromMs: from || 0, toMs: to || 0, userId: userFilter || "" },
+        summary: {
+            usersActiveInRange: userSet.size,
+            totalSessions,
+            activeSessions,
+            avgDurationSec,
+            totalScreenSec,
+            totalEvents: accessFiltered.length,
+            feedbackCount
+        },
+        chart: {
+            sessionsByDay,
+            screenByDay,
+            eventsByType
+        },
+        rows: {
+            sessions: sessionRows
+        }
+    };
+}
+
+function buildSessionsCsv(rows) {
+    const headers = [
+        "session_id",
+        "user_id",
+        "name",
+        "phone",
+        "login_time_ist",
+        "logout_time_ist",
+        "duration_sec",
+        "screen_time_sec",
+        "status"
+    ];
+    const lines = [headers.join(",")];
+    for (const r of rows) {
+        lines.push([
+            r.sessionId,
+            r.userId,
+            r.name,
+            r.phone,
+            r.loginTimeIst,
+            r.logoutTimeIst,
+            r.durationSec,
+            r.screenTimeSec,
+            r.status
+        ].map(csvEscape).join(","));
+    }
+    return `${lines.join("\n")}\n`;
+}
+
 function checkAdmin(headers, query) {
     const adminKey = process.env.ADMIN_KEY || "";
     if (!adminKey) return true;
@@ -763,15 +1517,30 @@ function json(statusCode, payload, extraHeaders = {}) {
 module.exports = {
     ADMIN_TAB,
     ACCESS_TAB,
+    LOGIN_TAB,
+    SESSION_TAB,
     buildAdminCsv,
+    buildSessionsCsv,
+    buildSessionCookie,
     checkAdmin,
+    clearSessionCookie,
+    closeSession,
     defaultState,
     ensureClientId,
+    getAuthenticatedSession,
+    getAdminAnalytics,
     getClientState,
+    getUserById,
     json,
     logAccessEvent,
     listClientStates,
+    createUserSession,
+    deleteLoginUser,
     syncAdminTabFromStore,
+    listLoginUsers,
+    touchSession,
+    upsertLoginUser,
     upsertClientState,
+    verifyLoginIdentity,
     withStateDefaults
 };

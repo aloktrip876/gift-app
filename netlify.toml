@@ -13,6 +13,26 @@
   status = 200
 
 [[redirects]]
+  from = "/api/auth/login"
+  to = "/.netlify/functions/auth-login"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/session"
+  to = "/.netlify/functions/auth-session"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/logout"
+  to = "/.netlify/functions/auth-logout"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/heartbeat"
+  to = "/.netlify/functions/auth-heartbeat"
+  status = 200
+
+[[redirects]]
   from = "/api/admin/states"
   to = "/.netlify/functions/admin-states"
   status = 200
@@ -20,6 +40,21 @@
 [[redirects]]
   from = "/api/admin/states.csv"
   to = "/.netlify/functions/admin-states-csv"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/users"
+  to = "/.netlify/functions/admin-users"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/analytics"
+  to = "/.netlify/functions/admin-analytics"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/analytics/sessions.csv"
+  to = "/.netlify/functions/admin-analytics-sessions-csv"
   status = 200
 
 [[redirects]]

@@ -758,6 +758,34 @@
             transform: scale(1.1);
         }
 
+        #logout-btn {
+            position: fixed;
+            top: 20px;
+            right: 72px;
+            z-index: 1001;
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, var(--danger), #b82a49);
+            border: 2px solid var(--glass-border);
+            color: #ffffff;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        #logout-btn:hover {
+            transform: scale(1.08);
+        }
+
+        #logout-btn:active {
+            transform: scale(0.95);
+        }
+
         /* Customize Modal */
         #customize-modal {
             position: fixed;

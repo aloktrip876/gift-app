@@ -1,5 +1,5 @@
 ﻿/* --- CONFIGURATION --- */
-        const TOTAL_CHESTS = 10;
+        let TOTAL_CHESTS = 10;
         const COOLDOWN_DAYS = 30;
         const COOLDOWN_MS = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
         const MASTER_RESET_KEY = "RESET-CHESTS"; 
@@ -8,7 +8,7 @@
         const UNLOCK_ALL_KEY = "OPEN-ALL";
         const RESTART_KEYWORD = "RESTART";
 
-        const CHEST_DATA = [
+        const DEFAULT_CHEST_DATA = [
             // CHEST 1: WARM MESSAGE (Type: letter)
             { 
                 id: 1, 
@@ -198,8 +198,16 @@
         ];
 
         /* --- STATE --- */
+        let CHEST_DATA = JSON.parse(JSON.stringify(DEFAULT_CHEST_DATA));
         const API_STATE_URL = '/api/state';
         const API_RESET_URL = '/api/reset';
+        const API_AUTH_LOGIN_URL = '/api/auth/login';
+        const API_AUTH_SESSION_URL = '/api/auth/session';
+        const API_AUTH_LOGOUT_URL = '/api/auth/logout';
+        const API_AUTH_HEARTBEAT_URL = '/api/auth/heartbeat';
+        const API_ADMIN_USERS_URL = '/api/admin/users';
+        const API_ADMIN_ANALYTICS_URL = '/api/admin/analytics';
+        const API_ADMIN_ANALYTICS_CSV_URL = '/api/admin/analytics/sessions.csv';
 
         function createDefaultState() {
             return {
@@ -210,6 +218,7 @@
                 adminHistory: [],
                 puzzleState: null,
                 feedbackSent: null,
+                contentAccessTimes: {},
                 ui: {
                     theme: 'dark',
                     colorScheme: 'amethyst',
@@ -235,16 +244,219 @@
 
         let state = createDefaultState();
         let saveQueue = Promise.resolve();
+        let currentUser = null;
+        let loginAttempts = Number(localStorage.getItem('gift_login_attempts') || 0);
+        let sessionScreenMs = 0;
+        let visibleSince = Date.now();
+        let heartbeatInterval = null;
+        const analyticsState = {
+            rows: [],
+            page: 1,
+            pageSize: 12
+        };
 
         // When true, don't reveal the final feedback section yet so the last chest's gift
         // can be displayed first. This is toggled when the 10th chest is just unlocked.
         let deferFinalReveal = false;
+
+        function setLoginStatus(text, isError = false) {
+            const status = document.getElementById('login-status');
+            const attempts = document.getElementById('login-attempts');
+            if (status) {
+                status.textContent = text || '';
+                status.style.color = isError ? 'var(--danger)' : 'var(--text-muted)';
+            }
+            if (attempts) {
+                const left = Math.max(0, 3 - loginAttempts);
+                attempts.textContent = left > 0 ? `Attempts left: ${left}` : 'Retry limit reached. Refresh page to retry later.';
+            }
+        }
+
+        function deepClone(obj) {
+            return JSON.parse(JSON.stringify(obj));
+        }
+
+        function getStateCacheKey() {
+            const userId = currentUser && currentUser.userId ? currentUser.userId : 'anonymous';
+            return `gift_state_cache_${userId}`;
+        }
+
+        function writeStateCache(snapshot) {
+            try {
+                localStorage.setItem(getStateCacheKey(), JSON.stringify(snapshot));
+            } catch (err) {
+                // Ignore cache write errors.
+            }
+        }
+
+        function readStateCache() {
+            try {
+                const raw = localStorage.getItem(getStateCacheKey());
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch (err) {
+                return null;
+            }
+        }
+
+        function getAdminKeyFromUI() {
+            const el = document.getElementById('admin-key-input');
+            return (el && el.value ? el.value.trim() : '');
+        }
+
+        function adminAuthHeaders(base = {}) {
+            const key = getAdminKeyFromUI();
+            return key ? { ...base, 'x-admin-key': key } : base;
+        }
+
+        function applyUserPersonalization(user) {
+            currentUser = user || null;
+            CHEST_DATA = deepClone(DEFAULT_CHEST_DATA);
+
+            const profile = (user && user.contentProfile && typeof user.contentProfile === 'object') ? user.contentProfile : {};
+            const overrides = Array.isArray(profile.chestOverrides) ? profile.chestOverrides : [];
+            for (const override of overrides) {
+                if (!override || typeof override !== 'object') continue;
+                const idx = CHEST_DATA.findIndex(c => c.id === override.id);
+                if (idx >= 0) {
+                    CHEST_DATA[idx] = {
+                        ...CHEST_DATA[idx],
+                        ...override
+                    };
+                }
+            }
+
+            TOTAL_CHESTS = CHEST_DATA.length;
+
+            const title = profile.pageTitle || (user && user.pageTitle) || document.title;
+            const subtitle = profile.headerSubtitle || "A digital journey of surprises, unlocked one key at a time.";
+            const headerTitle = profile.headerTitle || title;
+
+            document.title = title;
+            const h1 = document.querySelector('header h1');
+            const p = document.querySelector('header p');
+            if (h1) h1.textContent = headerTitle;
+            if (p) p.textContent = subtitle;
+
+            const userInfo = document.getElementById('user-session-info');
+            const userName = document.getElementById('session-user-name');
+            const logoutBtn = document.getElementById('logout-btn');
+            if (userInfo && userName && user) {
+                userInfo.style.display = 'block';
+                userName.textContent = user.name || user.userId || 'User';
+            }
+            if (logoutBtn) logoutBtn.style.display = user ? 'flex' : 'none';
+        }
+
+        async function checkSession() {
+            const res = await fetch(API_AUTH_SESSION_URL, { method: 'GET', credentials: 'include' });
+            if (!res.ok) return null;
+            const data = await res.json();
+            if (!data || !data.authenticated) return null;
+            return data.user || null;
+        }
+
+        async function ensureAuthenticated() {
+            const user = await checkSession();
+            if (user) {
+                applyUserPersonalization(user);
+                document.getElementById('login-modal').classList.remove('active');
+                setLoginStatus('');
+                return true;
+            }
+            applyUserPersonalization(null);
+            document.getElementById('login-modal').classList.add('active');
+            setLoginStatus('Verify your identity to continue.');
+            return false;
+        }
+
+        async function submitLogin() {
+            const name = (document.getElementById('login-name').value || '').trim();
+            const phone = (document.getElementById('login-phone').value || '').trim();
+            if (!name || !phone) {
+                setLoginStatus('Name and phone are required.', true);
+                return;
+            }
+            setLoginStatus('Verifying...');
+            try {
+                const res = await fetch(API_AUTH_LOGIN_URL, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, phone })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.ok) {
+                    if (typeof data.attemptsLeft === 'number') {
+                        loginAttempts = Math.max(0, 3 - data.attemptsLeft);
+                    } else {
+                        loginAttempts += 1;
+                    }
+                    localStorage.setItem('gift_login_attempts', String(loginAttempts));
+                    if (res.status === 429 || data.retryAfterSec) {
+                        setLoginStatus(`Locked. Retry after ${data.retryAfterSec || 0}s. ${data.lockUntilIst ? `Unlocks at ${data.lockUntilIst}` : ''}`, true);
+                    } else {
+                        setLoginStatus(data.error || 'Verification failed.', true);
+                    }
+                    return;
+                }
+                loginAttempts = 0;
+                localStorage.setItem('gift_login_attempts', '0');
+                applyUserPersonalization(data.user || null);
+                document.getElementById('login-modal').classList.remove('active');
+                await init();
+            } catch (err) {
+                loginAttempts += 1;
+                localStorage.setItem('gift_login_attempts', String(loginAttempts));
+                setLoginStatus('Login failed. Check network and retry.', true);
+            }
+        }
+
+        function updateVisibleScreenTime() {
+            const now = Date.now();
+            if (document.visibilityState === 'visible' && visibleSince > 0) {
+                sessionScreenMs += Math.max(0, now - visibleSince);
+                visibleSince = now;
+            } else if (document.visibilityState !== 'visible') {
+                visibleSince = 0;
+            }
+        }
+
+        async function logoutUser() {
+            updateVisibleScreenTime();
+            const screenTimeSec = Math.floor(sessionScreenMs / 1000);
+            try {
+                await fetch(API_AUTH_LOGOUT_URL, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ screenTimeSec })
+                });
+            } catch (err) {
+                console.error('Logout failed:', err);
+            }
+            location.reload();
+        }
+
+        async function heartbeat() {
+            if (!currentUser) return;
+            updateVisibleScreenTime();
+            fetch(API_AUTH_HEARTBEAT_URL, {
+                method: 'POST',
+                credentials: 'include'
+            }).catch(() => {});
+        }
+
         /* --- INIT --- */
         async function init() {
+            if (!currentUser) {
+                const ok = await ensureAuthenticated();
+                if (!ok) return;
+            }
             await loadState();
             initTheme();
             
-            if (state.chests.length === 0) {
+            if (state.chests.length === 0 || state.chests.length !== TOTAL_CHESTS) {
                 state.chests = CHEST_DATA.map(c => ({
                     id: c.id, isLocked: true, key: null, unlockedAt: null
                 }));
@@ -276,6 +488,17 @@
                     setupCanvas();
                 }
             });
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    visibleSince = Date.now();
+                } else {
+                    updateVisibleScreenTime();
+                }
+            });
+
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            heartbeatInterval = setInterval(heartbeat, 60000);
         }
         
         /* --- FINAL PAGE RESTART LOGIC --- */
@@ -289,7 +512,10 @@
         /* --- FEEDBACK LOGIC --- */
         function sendFeedback(type) {
 
-            state.feedbackSent = type;
+            state.feedbackSent = {
+                type,
+                at: Date.now()
+            };
             saveState();
 
             const messageEl = document.getElementById('feedback-message');
@@ -717,6 +943,8 @@
             chest.isLocked = false;
             chest.key = userKey;
             chest.unlockedAt = Date.now();
+            state.contentAccessTimes = state.contentAccessTimes || {};
+            state.contentAccessTimes[String(id)] = Date.now();
             state.pendingKey = null;
 
             // Do NOT wipe puzzleState here. Keep puzzle state so the reward can render.
@@ -861,7 +1089,7 @@
 
                 // Re-apply feedback state if already sent
                 if (state.feedbackSent) {
-                    sendFeedback(state.feedbackSent);
+                    sendFeedback(typeof state.feedbackSent === 'string' ? state.feedbackSent : state.feedbackSent.type);
                 }
 
                 logAdmin("All chests unlocked. Displaying chests grid and final page (deferred=" + deferFinalReveal + ").");
@@ -1078,7 +1306,9 @@
         }
 
         function saveState() {
+            if (!currentUser) return Promise.resolve();
             const snapshot = JSON.parse(JSON.stringify(state));
+            writeStateCache(snapshot);
             saveQueue = saveQueue
                 .catch(() => {})
                 .then(() =>
@@ -1098,12 +1328,19 @@
                     method: 'GET',
                     credentials: 'include'
                 });
+                if (res.status === 401) {
+                    await ensureAuthenticated();
+                    throw new Error('Not authenticated');
+                }
                 if (!res.ok) throw new Error(`State load failed: ${res.status}`);
                 const data = await res.json();
                 state = hydrateState(data.state);
+                writeStateCache(state);
+                if (data && data.user) applyUserPersonalization(data.user);
             } catch (err) {
                 console.error(err);
-                state = createDefaultState();
+                const cached = readStateCache();
+                state = cached ? hydrateState(cached) : createDefaultState();
             }
         }
 
@@ -1171,6 +1408,335 @@
             }
         }
 
+        async function openUserManager() {
+            const modal = document.getElementById('user-manager-modal');
+            if (!modal) return;
+            modal.classList.add('active');
+            await refreshManagedUsers();
+        }
+
+        function closeUserManager() {
+            const modal = document.getElementById('user-manager-modal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function setUserManagerStatus(text, isError = false) {
+            const el = document.getElementById('um-status');
+            if (!el) return;
+            el.textContent = text || '';
+            el.style.color = isError ? 'var(--danger)' : 'var(--text-muted)';
+        }
+
+        function readUserManagerPayload() {
+            const userId = (document.getElementById('um-user-id').value || '').trim();
+            const name = (document.getElementById('um-name').value || '').trim();
+            const phone = (document.getElementById('um-phone').value || '').trim();
+            const pageTitle = (document.getElementById('um-page-title').value || '').trim();
+            const isActive = (document.getElementById('um-active').value || 'true') === 'true';
+            const notes = (document.getElementById('um-notes').value || '').trim();
+            const rawJson = (document.getElementById('um-content-json').value || '').trim();
+            let contentProfile = {};
+            if (rawJson) contentProfile = JSON.parse(rawJson);
+            return { userId, name, phone, pageTitle, isActive, notes, contentProfile };
+        }
+
+        async function refreshManagedUsers() {
+            const listEl = document.getElementById('um-list');
+            if (!listEl) return;
+            setUserManagerStatus('Loading users...');
+            try {
+                const res = await fetch(API_ADMIN_USERS_URL, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: adminAuthHeaders()
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.ok) throw new Error(data.error || `Failed (${res.status})`);
+                const users = Array.isArray(data.users) ? data.users : [];
+                listEl.innerHTML = users.length
+                    ? users.map((u) => `<div>${u.userId} | ${u.name} | ${u.phone} | ${u.isActive ? 'ACTIVE' : 'INACTIVE'}</div>`).join('')
+                    : '<div>No users found.</div>';
+                setUserManagerStatus(`Loaded ${users.length} users.`);
+            } catch (err) {
+                setUserManagerStatus(`Load failed: ${err.message}`, true);
+            }
+        }
+
+        async function saveManagedUser() {
+            let payload;
+            try {
+                payload = readUserManagerPayload();
+            } catch (err) {
+                setUserManagerStatus(`Invalid JSON: ${err.message}`, true);
+                return;
+            }
+            setUserManagerStatus('Saving user...');
+            try {
+                const res = await fetch(API_ADMIN_USERS_URL, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: adminAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ user: payload })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.ok) throw new Error(data.error || `Failed (${res.status})`);
+                setUserManagerStatus(`Saved user ${data.user.userId}.`);
+                await refreshManagedUsers();
+            } catch (err) {
+                setUserManagerStatus(`Save failed: ${err.message}`, true);
+            }
+        }
+
+        async function deleteManagedUser() {
+            const userId = (document.getElementById('um-user-id').value || '').trim();
+            if (!userId) {
+                setUserManagerStatus('Enter user_id to delete.', true);
+                return;
+            }
+            if (!confirm(`Delete user ${userId}?`)) return;
+            setUserManagerStatus('Deleting user...');
+            try {
+                const res = await fetch(API_ADMIN_USERS_URL, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                    headers: adminAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ userId })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.ok) throw new Error(data.error || `Failed (${res.status})`);
+                setUserManagerStatus(data.deleted ? `Deleted ${userId}.` : `User ${userId} not found.`);
+                await refreshManagedUsers();
+            } catch (err) {
+                setUserManagerStatus(`Delete failed: ${err.message}`, true);
+            }
+        }
+
+        function openAnalyticsManager() {
+            const modal = document.getElementById('analytics-modal');
+            if (!modal) return;
+            modal.classList.add('active');
+            const fromEl = document.getElementById('an-from-ms');
+            const toEl = document.getElementById('an-to-ms');
+            if (fromEl && toEl && !fromEl.value && !toEl.value) {
+                setAnalyticsPreset('7d');
+                return;
+            }
+            loadAnalytics();
+        }
+
+        function closeAnalyticsManager() {
+            const modal = document.getElementById('analytics-modal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function setAnalyticsStatus(text, isError = false) {
+            const el = document.getElementById('an-status');
+            if (!el) return;
+            el.textContent = text || '';
+            el.style.color = isError ? 'var(--danger)' : 'var(--text-muted)';
+        }
+
+        function toLocalInputValue(ts) {
+            const d = new Date(ts);
+            const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+            return local.toISOString().slice(0, 16);
+        }
+
+        function setAnalyticsPreset(preset) {
+            const fromEl = document.getElementById('an-from-ms');
+            const toEl = document.getElementById('an-to-ms');
+            if (!fromEl || !toEl) return;
+            const now = Date.now();
+            if (preset === 'clear') {
+                fromEl.value = '';
+                toEl.value = '';
+                loadAnalytics();
+                return;
+            }
+            if (preset === 'today') {
+                const d = new Date();
+                d.setHours(0, 0, 0, 0);
+                fromEl.value = toLocalInputValue(d.getTime());
+                toEl.value = toLocalInputValue(now);
+                loadAnalytics();
+                return;
+            }
+            const days = preset === '30d' ? 30 : 7;
+            const from = now - days * 24 * 60 * 60 * 1000;
+            fromEl.value = toLocalInputValue(from);
+            toEl.value = toLocalInputValue(now);
+            loadAnalytics();
+        }
+
+        function getAnalyticsQuery() {
+            const fromRaw = (document.getElementById('an-from-ms').value || '').trim();
+            const toRaw = (document.getElementById('an-to-ms').value || '').trim();
+            const userId = (document.getElementById('an-user-id').value || '').trim();
+            const qs = new URLSearchParams();
+            const fromTs = fromRaw ? new Date(fromRaw).getTime() : 0;
+            const toTs = toRaw ? new Date(toRaw).getTime() : 0;
+            if (Number.isFinite(fromTs) && fromTs > 0) qs.set('fromMs', String(fromTs));
+            if (Number.isFinite(toTs) && toTs > 0) qs.set('toMs', String(toTs));
+            if (userId) qs.set('userId', userId);
+            return qs.toString();
+        }
+
+        function renderAnalyticsSummary(summary) {
+            const root = document.getElementById('an-summary');
+            if (!root) return;
+            const cards = [
+                ['Users (range)', summary.usersActiveInRange || 0],
+                ['Total Sessions', summary.totalSessions || 0],
+                ['Active Sessions', summary.activeSessions || 0],
+                ['Avg Duration (sec)', summary.avgDurationSec || 0],
+                ['Total Screen (sec)', summary.totalScreenSec || 0],
+                ['Total Events', summary.totalEvents || 0],
+                ['Feedback Count', summary.feedbackCount || 0]
+            ];
+            root.innerHTML = cards.map(([k, v]) => `
+                <div style="padding:0.6rem; border:1px solid var(--glass-border); border-radius:8px; background:var(--glass);">
+                    <div style="font-size:0.72rem; color:var(--text-muted);">${k}</div>
+                    <div style="font-size:1.1rem; color:var(--accent); font-weight:700;">${v}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderAnalyticsTable(rows) {
+            const el = document.getElementById('an-table');
+            if (!el) return;
+            if (!rows || !rows.length) {
+                el.innerHTML = '<div>No sessions for selected filters.</div>';
+                renderAnalyticsPagination();
+                return;
+            }
+            const start = (analyticsState.page - 1) * analyticsState.pageSize;
+            const end = start + analyticsState.pageSize;
+            const pageRows = rows.slice(start, end);
+            el.innerHTML = pageRows.map((r) => {
+                return `<div>${r.userId} | ${r.name} | ${r.loginTimeIst} | ${r.logoutTimeIst || '-'} | dur:${r.durationSec}s | screen:${r.screenTimeSec}s | ${r.status}</div>`;
+            }).join('');
+            renderAnalyticsPagination();
+        }
+
+        function renderAnalyticsPagination() {
+            const el = document.getElementById('an-pagination');
+            if (!el) return;
+            const total = analyticsState.rows.length;
+            if (!total) {
+                el.innerHTML = '';
+                return;
+            }
+            const totalPages = Math.max(1, Math.ceil(total / analyticsState.pageSize));
+            analyticsState.page = Math.min(Math.max(1, analyticsState.page), totalPages);
+            el.innerHTML = `
+                <button class="btn btn-sm" ${analyticsState.page <= 1 ? 'disabled' : ''} onclick="changeAnalyticsPage(-1)">Prev</button>
+                <span style="color:var(--text-muted); font-size:0.82rem;">Page ${analyticsState.page}/${totalPages} | Rows ${total}</span>
+                <button class="btn btn-sm" ${analyticsState.page >= totalPages ? 'disabled' : ''} onclick="changeAnalyticsPage(1)">Next</button>
+            `;
+        }
+
+        function changeAnalyticsPage(delta) {
+            analyticsState.page += Number(delta || 0);
+            renderAnalyticsTable(analyticsState.rows);
+        }
+
+        function renderAnalyticsChart(chart) {
+            const canvas = document.getElementById('an-chart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const sessionMap = (chart && chart.sessionsByDay) ? chart.sessionsByDay : {};
+            const screenMap = (chart && chart.screenByDay) ? chart.screenByDay : {};
+            const labels = Array.from(new Set([...Object.keys(sessionMap), ...Object.keys(screenMap)])).sort();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255,255,255,0.03)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (!labels.length) {
+                ctx.fillStyle = '#888';
+                ctx.font = '14px Poppins';
+                ctx.fillText('No data for chart', 20, 30);
+                return;
+            }
+
+            const values = labels.map((k) => Number(sessionMap[k] || 0));
+            const screenValues = labels.map((k) => Number(screenMap[k] || 0));
+            const max = Math.max(...values, 1);
+            const maxScreen = Math.max(...screenValues, 1);
+            const padding = 40;
+            const w = canvas.width - padding * 2;
+            const h = canvas.height - padding * 2;
+            const bw = Math.max(8, Math.floor(w / labels.length) - 8);
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, padding + h);
+            ctx.lineTo(padding + w, padding + h);
+            ctx.stroke();
+
+            labels.forEach((label, i) => {
+                const val = values[i];
+                const bh = Math.round((val / max) * (h - 10));
+                const x = padding + i * (w / labels.length) + 4;
+                const y = padding + h - bh;
+                ctx.fillStyle = 'rgba(107, 47, 181, 0.8)';
+                ctx.fillRect(x, y, bw, bh);
+                ctx.fillStyle = '#c8b8e0';
+                ctx.font = '10px Poppins';
+                const text = label.slice(5);
+                ctx.fillText(text, x, padding + h + 12);
+            });
+
+            // Screen-time line series
+            ctx.strokeStyle = 'rgba(3, 218, 198, 0.9)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            labels.forEach((label, i) => {
+                const v = Number(screenMap[label] || 0);
+                const y = padding + h - Math.round((v / maxScreen) * (h - 10));
+                const x = padding + i * (w / labels.length) + Math.floor(bw / 2) + 4;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            ctx.fillStyle = '#c8b8e0';
+            ctx.font = '11px Poppins';
+            ctx.fillText('Bars: Sessions', padding, 14);
+            ctx.fillStyle = 'rgba(3, 218, 198, 0.95)';
+            ctx.fillText('Line: Screen Time (sec)', padding + 130, 14);
+        }
+
+        async function loadAnalytics() {
+            setAnalyticsStatus('Loading analytics...');
+            try {
+                const qs = getAnalyticsQuery();
+                const res = await fetch(`${API_ADMIN_ANALYTICS_URL}${qs ? `?${qs}` : ''}`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: adminAuthHeaders()
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.ok) throw new Error(data.error || `Failed (${res.status})`);
+                const analytics = data.analytics || {};
+                renderAnalyticsSummary(analytics.summary || {});
+                renderAnalyticsChart(analytics.chart || {});
+                analyticsState.rows = (analytics.rows && analytics.rows.sessions) || [];
+                analyticsState.page = 1;
+                renderAnalyticsTable(analyticsState.rows);
+                setAnalyticsStatus('Analytics loaded.');
+            } catch (err) {
+                setAnalyticsStatus(`Analytics failed: ${err.message}`, true);
+            }
+        }
+
+        function downloadAnalyticsSessionsCsv() {
+            const qs = getAnalyticsQuery();
+            const key = encodeURIComponent(getAdminKeyFromUI());
+            const url = `${API_ADMIN_ANALYTICS_CSV_URL}${qs ? `?${qs}&` : '?'}key=${key}`;
+            window.open(url, '_blank');
+        }
+
         /* --- LIGHTBOX VIEWER FOR CHEST 6 --- */
         let lightboxState = {
             images: [],
@@ -1180,10 +1746,29 @@
             currentX: 0
         };
 
+        function markContentAccess(chestId) {
+            if (!chestId) return;
+            state.contentAccessTimes = state.contentAccessTimes || {};
+            state.contentAccessTimes[String(chestId)] = Date.now();
+            saveState();
+        }
+
+        function resolveChestIdByAsset(assetPath) {
+            const entry = CHEST_DATA.find((c) => {
+                if (!c) return false;
+                if (Array.isArray(c.content)) return c.content.includes(assetPath);
+                return c.content === assetPath;
+            });
+            return entry ? entry.id : null;
+        }
+
         function openLightbox(index, images) {
             lightboxState.images = images;
             lightboxState.currentIndex = index;
             lightboxState.isDragging = false;
+            const openedAsset = Array.isArray(images) ? images[index] : null;
+            const chestId = resolveChestIdByAsset(openedAsset);
+            markContentAccess(chestId);
             
             const modal = document.getElementById('lightbox-modal');
             const image = document.getElementById('lightbox-image');
