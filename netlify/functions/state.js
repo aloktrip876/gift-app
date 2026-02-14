@@ -4,6 +4,7 @@ const {
     ensureClientId,
     getClientState,
     json,
+    logAccessEvent,
     upsertClientState,
     withStateDefaults
 } = require("./_lib/sheetsStore");
@@ -14,6 +15,7 @@ exports.handler = async (event) => {
         const cookieHeader = setCookie ? { "set-cookie": setCookie } : {};
 
         if (event.httpMethod === "GET") {
+            await logAccessEvent(clientId, "visit");
             const saved = await getClientState(clientId);
             const state = withStateDefaults(saved);
             if (!saved) await upsertClientState(clientId, state);

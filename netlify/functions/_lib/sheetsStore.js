@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const STORE_TAB = process.env.GOOGLE_STATE_TAB || "StateStore";
 const ADMIN_TAB = process.env.GOOGLE_SHEET_TAB || "States";
 const DASHBOARD_TAB = process.env.GOOGLE_DASHBOARD_TAB || "Dashboard";
+const ACCESS_TAB = process.env.GOOGLE_ACCESS_TAB || "AccessLog";
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 const SERVICE_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
 const SERVICE_KEY = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "").replace(/\\n/g, "\n");
@@ -491,6 +492,41 @@ async function ensureStoreHeader(sheets) {
     }
 }
 
+async function ensureAccessHeader(sheets) {
+    await ensureTab(sheets, ACCESS_TAB);
+    const headerRes = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${ACCESS_TAB}!A1:D1`
+    });
+    const row = (headerRes.data.values && headerRes.data.values[0]) || [];
+    const ok = row[0] === "accessed_at_iso" && row[1] === "accessed_at_ms" && row[2] === "client_id" && row[3] === "event";
+    if (!ok) {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${ACCESS_TAB}!A1:D1`,
+            valueInputOption: "RAW",
+            requestBody: {
+                values: [["accessed_at_iso", "accessed_at_ms", "client_id", "event"]]
+            }
+        });
+    }
+}
+
+async function logAccessEvent(clientId, eventType = "visit") {
+    const sheets = await getSheets();
+    await ensureAccessHeader(sheets);
+    const now = Date.now();
+    await sheets.spreadsheets.values.append({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: `${ACCESS_TAB}!A:D`,
+        valueInputOption: "RAW",
+        insertDataOption: "INSERT_ROWS",
+        requestBody: {
+            values: [[new Date(now).toISOString(), now, clientId, eventType]]
+        }
+    });
+}
+
 async function getStoreRows(sheets) {
     await ensureStoreHeader(sheets);
     const res = await sheets.spreadsheets.values.get({
@@ -716,12 +752,14 @@ function json(statusCode, payload, extraHeaders = {}) {
 
 module.exports = {
     ADMIN_TAB,
+    ACCESS_TAB,
     buildAdminCsv,
     checkAdmin,
     defaultState,
     ensureClientId,
     getClientState,
     json,
+    logAccessEvent,
     listClientStates,
     syncAdminTabFromStore,
     upsertClientState,
