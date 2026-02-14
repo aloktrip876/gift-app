@@ -514,17 +514,27 @@ async function ensureAccessHeader(sheets) {
 
 async function logAccessEvent(clientId, eventType = "visit") {
     const sheets = await getSheets();
-    await ensureAccessHeader(sheets);
     const now = Date.now();
-    await sheets.spreadsheets.values.append({
-        spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${ACCESS_TAB}!A:D`,
-        valueInputOption: "RAW",
-        insertDataOption: "INSERT_ROWS",
-        requestBody: {
-            values: [[new Date(now).toISOString(), now, clientId, eventType]]
-        }
-    });
+    const values = [[new Date(now).toISOString(), now, clientId, eventType]];
+    try {
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${ACCESS_TAB}!A:D`,
+            valueInputOption: "RAW",
+            insertDataOption: "INSERT_ROWS",
+            requestBody: { values }
+        });
+    } catch (err) {
+        // First-run fallback: create tab/header once, then retry append.
+        await ensureAccessHeader(sheets);
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${ACCESS_TAB}!A:D`,
+            valueInputOption: "RAW",
+            insertDataOption: "INSERT_ROWS",
+            requestBody: { values }
+        });
+    }
 }
 
 async function getStoreRows(sheets) {

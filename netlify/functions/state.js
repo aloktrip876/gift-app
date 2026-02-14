@@ -15,7 +15,12 @@ exports.handler = async (event) => {
         const cookieHeader = setCookie ? { "set-cookie": setCookie } : {};
 
         if (event.httpMethod === "GET") {
-            await logAccessEvent(clientId, "visit");
+            try {
+                await logAccessEvent(clientId, "visit");
+            } catch (err) {
+                // Never block page access on logging failures.
+                console.error("Access log failed:", err.message || err);
+            }
             const saved = await getClientState(clientId);
             const state = withStateDefaults(saved);
             if (!saved) await upsertClientState(clientId, state);
