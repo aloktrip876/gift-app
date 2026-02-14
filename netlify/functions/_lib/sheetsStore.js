@@ -109,16 +109,32 @@ function rgb(r, g, b) {
     return { red: r, green: g, blue: b };
 }
 
+const DASH_COLORS = {
+    ink: rgb(0.11, 0.14, 0.18),
+    textMuted: rgb(0.34, 0.39, 0.46),
+    brand: rgb(0.18, 0.29, 0.60),
+    brandSoft: rgb(0.90, 0.93, 0.99),
+    success: rgb(0.10, 0.52, 0.32),
+    successSoft: rgb(0.88, 0.97, 0.92),
+    info: rgb(0.12, 0.42, 0.73),
+    infoSoft: rgb(0.90, 0.95, 1.0),
+    warning: rgb(0.63, 0.41, 0.08),
+    warningSoft: rgb(1.0, 0.96, 0.86),
+    border: rgb(0.84, 0.87, 0.92),
+    bg: rgb(0.98, 0.99, 1.0)
+};
+
 async function formatAdminTab(sheets, sheetId, rowCount, colCount) {
     const safeRows = Math.max(rowCount, 1);
+    await clearBanding(sheets, sheetId);
     const requests = [
         {
             updateSheetProperties: {
                 properties: {
                     sheetId,
-                    gridProperties: { frozenRowCount: 1 }
+                    gridProperties: { frozenRowCount: 1, hideGridlines: true }
                 },
-                fields: "gridProperties.frozenRowCount"
+                fields: "gridProperties.frozenRowCount,gridProperties.hideGridlines"
             }
         },
         {
@@ -132,8 +148,8 @@ async function formatAdminTab(sheets, sheetId, rowCount, colCount) {
                 },
                 cell: {
                     userEnteredFormat: {
-                        backgroundColor: rgb(0.20, 0.14, 0.45),
-                        textFormat: { bold: true, foregroundColor: rgb(1, 1, 1) },
+                        backgroundColor: DASH_COLORS.brand,
+                        textFormat: { bold: true, fontSize: 10, foregroundColor: rgb(1, 1, 1) },
                         horizontalAlignment: "CENTER",
                         verticalAlignment: "MIDDLE"
                     }
@@ -152,8 +168,8 @@ async function formatAdminTab(sheets, sheetId, rowCount, colCount) {
                 },
                 cell: {
                     userEnteredFormat: {
-                        backgroundColor: rgb(0.97, 0.97, 1),
-                        textFormat: { foregroundColor: rgb(0.13, 0.13, 0.13) },
+                        backgroundColor: DASH_COLORS.bg,
+                        textFormat: { foregroundColor: DASH_COLORS.ink, fontSize: 10 },
                         verticalAlignment: "MIDDLE"
                     }
                 },
@@ -171,7 +187,7 @@ async function formatAdminTab(sheets, sheetId, rowCount, colCount) {
                 },
                 cell: {
                     userEnteredFormat: {
-                        textFormat: { bold: true, foregroundColor: rgb(0.20, 0.14, 0.45) }
+                        textFormat: { bold: true, foregroundColor: DASH_COLORS.brand }
                     }
                 },
                 fields: "userEnteredFormat.textFormat"
@@ -195,6 +211,23 @@ async function formatAdminTab(sheets, sheetId, rowCount, colCount) {
             }
         },
         {
+            repeatCell: {
+                range: {
+                    sheetId,
+                    startRowIndex: 1,
+                    endRowIndex: safeRows + 1,
+                    startColumnIndex: 0,
+                    endColumnIndex: 1
+                },
+                cell: {
+                    userEnteredFormat: {
+                        textFormat: { foregroundColor: DASH_COLORS.textMuted, fontSize: 9 }
+                    }
+                },
+                fields: "userEnteredFormat.textFormat"
+            }
+        },
+        {
             updateBorders: {
                 range: {
                     sheetId,
@@ -203,12 +236,29 @@ async function formatAdminTab(sheets, sheetId, rowCount, colCount) {
                     startColumnIndex: 0,
                     endColumnIndex: colCount
                 },
-                top: { style: "SOLID", color: rgb(0.72, 0.72, 0.82) },
-                bottom: { style: "SOLID", color: rgb(0.72, 0.72, 0.82) },
-                left: { style: "SOLID", color: rgb(0.72, 0.72, 0.82) },
-                right: { style: "SOLID", color: rgb(0.72, 0.72, 0.82) },
-                innerHorizontal: { style: "SOLID", color: rgb(0.88, 0.88, 0.94) },
-                innerVertical: { style: "SOLID", color: rgb(0.88, 0.88, 0.94) }
+                top: { style: "SOLID", color: DASH_COLORS.border },
+                bottom: { style: "SOLID", color: DASH_COLORS.border },
+                left: { style: "SOLID", color: DASH_COLORS.border },
+                right: { style: "SOLID", color: DASH_COLORS.border },
+                innerHorizontal: { style: "SOLID", color: DASH_COLORS.border },
+                innerVertical: { style: "SOLID", color: DASH_COLORS.border }
+            }
+        },
+        {
+            addBanding: {
+                bandedRange: {
+                    range: {
+                        sheetId,
+                        startRowIndex: 1,
+                        endRowIndex: safeRows + 1,
+                        startColumnIndex: 0,
+                        endColumnIndex: colCount
+                    },
+                    rowProperties: {
+                        firstBandColor: rgb(1, 1, 1),
+                        secondBandColor: rgb(0.96, 0.98, 1)
+                    }
+                }
             }
         },
         {
@@ -231,6 +281,7 @@ async function formatAdminTab(sheets, sheetId, rowCount, colCount) {
 
 async function syncDashboardTab(sheets, states) {
     const dashboardSheetId = await ensureTab(sheets, DASHBOARD_TAB);
+    await clearBanding(sheets, dashboardSheetId);
     const adminRef = `'${ADMIN_TAB.replace(/'/g, "''")}'`;
     const totalUsers = states.length;
     const progressPercents = states.map((entry) => {
@@ -258,7 +309,7 @@ async function syncDashboardTab(sheets, states) {
             values: [
                 ["Shreya Secret Chests - Admin Dashboard"],
                 [""],
-                ["Metric", "Value", "", "Progress Graph", "", "", "Theme Split", ""],
+                ["Metric", "Value", "", "Progress Trend", "", "", "Theme Split", ""],
                 ["Total Users", totalUsers, "", `=SPARKLINE(${adminRef}!E2:E,{"charttype","column";"color","#5e35b1"})`, "", "", "Dark", `=COUNTIF(${adminRef}!K2:K,"dark")`],
                 ["Average Progress", avgProgress, "", "", "", "", "Light", `=COUNTIF(${adminRef}!K2:K,"light")`],
                 ["Completed Users", completedUsers],
@@ -276,9 +327,20 @@ async function syncDashboardTab(sheets, states) {
                     updateSheetProperties: {
                         properties: {
                             sheetId: dashboardSheetId,
-                            gridProperties: { frozenRowCount: 3 }
+                            gridProperties: { frozenRowCount: 3, hideGridlines: true }
                         },
-                        fields: "gridProperties.frozenRowCount"
+                        fields: "gridProperties.frozenRowCount,gridProperties.hideGridlines"
+                    }
+                },
+                {
+                    unmergeCells: {
+                        range: { sheetId: dashboardSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 8 }
+                    }
+                },
+                {
+                    mergeCells: {
+                        range: { sheetId: dashboardSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 8 },
+                        mergeType: "MERGE_ALL"
                     }
                 },
                 {
@@ -286,7 +348,7 @@ async function syncDashboardTab(sheets, states) {
                         range: { sheetId: dashboardSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 8 },
                         cell: {
                             userEnteredFormat: {
-                                backgroundColor: rgb(0.16, 0.11, 0.37),
+                                backgroundColor: DASH_COLORS.brand,
                                 textFormat: { bold: true, fontSize: 14, foregroundColor: rgb(1, 1, 1) },
                                 horizontalAlignment: "CENTER"
                             }
@@ -299,8 +361,8 @@ async function syncDashboardTab(sheets, states) {
                         range: { sheetId: dashboardSheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 8 },
                         cell: {
                             userEnteredFormat: {
-                                backgroundColor: rgb(0.90, 0.90, 0.98),
-                                textFormat: { bold: true, foregroundColor: rgb(0.20, 0.14, 0.45) }
+                                backgroundColor: DASH_COLORS.brandSoft,
+                                textFormat: { bold: true, foregroundColor: DASH_COLORS.brand }
                             }
                         },
                         fields: "userEnteredFormat(backgroundColor,textFormat)"
@@ -311,11 +373,32 @@ async function syncDashboardTab(sheets, states) {
                         range: { sheetId: dashboardSheetId, startRowIndex: 3, endRowIndex: 8, startColumnIndex: 0, endColumnIndex: 2 },
                         cell: {
                             userEnteredFormat: {
-                                backgroundColor: rgb(0.98, 0.98, 1),
-                                textFormat: { foregroundColor: rgb(0.1, 0.1, 0.1) }
+                                backgroundColor: DASH_COLORS.bg,
+                                textFormat: { foregroundColor: DASH_COLORS.ink }
                             }
                         },
                         fields: "userEnteredFormat(backgroundColor,textFormat)"
+                    }
+                },
+                {
+                    repeatCell: {
+                        range: { sheetId: dashboardSheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 2 },
+                        cell: { userEnteredFormat: { backgroundColor: DASH_COLORS.infoSoft } },
+                        fields: "userEnteredFormat.backgroundColor"
+                    }
+                },
+                {
+                    repeatCell: {
+                        range: { sheetId: dashboardSheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 2 },
+                        cell: { userEnteredFormat: { backgroundColor: DASH_COLORS.successSoft } },
+                        fields: "userEnteredFormat.backgroundColor"
+                    }
+                },
+                {
+                    repeatCell: {
+                        range: { sheetId: dashboardSheetId, startRowIndex: 5, endRowIndex: 8, startColumnIndex: 0, endColumnIndex: 2 },
+                        cell: { userEnteredFormat: { backgroundColor: DASH_COLORS.warningSoft } },
+                        fields: "userEnteredFormat.backgroundColor"
                     }
                 },
                 {
@@ -328,12 +411,12 @@ async function syncDashboardTab(sheets, states) {
                 {
                     updateBorders: {
                         range: { sheetId: dashboardSheetId, startRowIndex: 2, endRowIndex: 8, startColumnIndex: 0, endColumnIndex: 8 },
-                        top: { style: "SOLID", color: rgb(0.75, 0.75, 0.82) },
-                        bottom: { style: "SOLID", color: rgb(0.75, 0.75, 0.82) },
-                        left: { style: "SOLID", color: rgb(0.75, 0.75, 0.82) },
-                        right: { style: "SOLID", color: rgb(0.75, 0.75, 0.82) },
-                        innerHorizontal: { style: "SOLID", color: rgb(0.90, 0.90, 0.95) },
-                        innerVertical: { style: "SOLID", color: rgb(0.90, 0.90, 0.95) }
+                        top: { style: "SOLID", color: DASH_COLORS.border },
+                        bottom: { style: "SOLID", color: DASH_COLORS.border },
+                        left: { style: "SOLID", color: DASH_COLORS.border },
+                        right: { style: "SOLID", color: DASH_COLORS.border },
+                        innerHorizontal: { style: "SOLID", color: DASH_COLORS.border },
+                        innerVertical: { style: "SOLID", color: DASH_COLORS.border }
                     }
                 },
                 {
@@ -359,12 +442,30 @@ async function clearAdminConditionalRules(sheets, sheetId) {
     const sheet = (meta.data.sheets || []).find((s) => s.properties && s.properties.sheetId === sheetId);
     const count = sheet && Array.isArray(sheet.conditionalFormats) ? sheet.conditionalFormats.length : 0;
     if (!count) return;
-    const requests = [];
     for (let i = count - 1; i >= 0; i--) {
         await sheets.spreadsheets.batchUpdate({
             spreadsheetId: GOOGLE_SHEET_ID,
             requestBody: {
                 requests: [{ deleteConditionalFormatRule: { sheetId, index: i } }]
+            }
+        });
+    }
+}
+
+async function clearBanding(sheets, sheetId) {
+    const meta = await sheets.spreadsheets.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        fields: "sheets(properties(sheetId),bandedRanges.bandedRangeId)"
+    });
+    const sheet = (meta.data.sheets || []).find((s) => s.properties && s.properties.sheetId === sheetId);
+    const ranges = (sheet && Array.isArray(sheet.bandedRanges)) ? sheet.bandedRanges : [];
+    if (!ranges.length) return;
+    for (const b of ranges) {
+        if (!b || !b.bandedRangeId) continue;
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            requestBody: {
+                requests: [{ deleteBanding: { bandedRangeId: b.bandedRangeId } }]
             }
         });
     }
@@ -544,7 +645,7 @@ async function syncAdminTabFromStore() {
                             ranges: [{ sheetId: adminSheetId, startRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3 }],
                             booleanRule: {
                                 condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Yes" }] },
-                                format: { backgroundColor: rgb(0.84, 0.94, 0.86), textFormat: { bold: true, foregroundColor: rgb(0.1, 0.35, 0.14) } }
+                                format: { backgroundColor: DASH_COLORS.successSoft, textFormat: { bold: true, foregroundColor: DASH_COLORS.success } }
                             }
                         }
                     }
@@ -556,7 +657,20 @@ async function syncAdminTabFromStore() {
                             ranges: [{ sheetId: adminSheetId, startRowIndex: 1, startColumnIndex: 7, endColumnIndex: 8 }],
                             booleanRule: {
                                 condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Yes" }] },
-                                format: { backgroundColor: rgb(0.92, 0.97, 1), textFormat: { bold: true, foregroundColor: rgb(0.08, 0.23, 0.45) } }
+                                format: { backgroundColor: DASH_COLORS.infoSoft, textFormat: { bold: true, foregroundColor: DASH_COLORS.info } }
+                            }
+                        }
+                    }
+                },
+                {
+                    addConditionalFormatRule: {
+                        index: 2,
+                        rule: {
+                            ranges: [{ sheetId: adminSheetId, startRowIndex: 1, startColumnIndex: 4, endColumnIndex: 5 }],
+                            gradientRule: {
+                                minpoint: { type: "NUMBER", value: "0", color: rgb(1.0, 0.93, 0.93) },
+                                midpoint: { type: "NUMBER", value: "0.5", color: rgb(1.0, 0.97, 0.85) },
+                                maxpoint: { type: "NUMBER", value: "1", color: rgb(0.88, 0.97, 0.92) }
                             }
                         }
                     }
