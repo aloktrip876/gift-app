@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: gift-secret-chests
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start:plain
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: ADMIN_KEY
+        generateValue: true
+      - key: GSHEET_SYNC_ENABLED
+        value: "true"
+      - key: GOOGLE_SHEET_ID
+        sync: false
+      - key: GOOGLE_SHEET_TAB
+        value: States
+      - key: GOOGLE_SERVICE_ACCOUNT_EMAIL
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+        sync: false
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: gift-data
+      mountPath: /var/data
+      sizeGB: 1

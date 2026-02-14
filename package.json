@@ -1,0 +1,14 @@
+{
+  "name": "shreya-secret-chests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dynamic server-backed version of the gift chest app",
+  "main": "server.js",
+  "dependencies": {
+    "googleapis": "^144.0.0"
+  },
+  "scripts": {
+    "start": "node --env-file=.env --no-warnings=ExperimentalWarning server.js",
+    "start:plain": "node --no-warnings=ExperimentalWarning server.js"
+  }
+}

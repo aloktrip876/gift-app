@@ -1,0 +1,176 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>✨ Shreya’s Secret Chests</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="images\icon_img.jpg">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <header>
+        <h1>✨ Shreya’s Secret Chests</h1>
+        <p>A digital journey of surprises, unlocked one key at a time.</p>
+    </header>
+
+
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+    <button id="customize-btn" onclick="openCustomizeModal()" title="Customize colors">⚙️</button>
+
+    <!-- Customize Modal -->
+    <div id="customize-modal">
+        <div class="customize-content">
+            <button class="close-customize" onclick="closeCustomizeModal()">✕</button>
+            
+            <h2>🎨 Color Palette</h2>
+
+            <!-- Color Schemes Section -->
+            <div class="customize-section">
+                <h3>Theme Colors</h3>
+                <div class="color-options" id="scheme-options">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Highlight Colors Section -->
+            <div class="customize-section">
+                <h3>Accent Highlights</h3>
+                <div class="color-options" id="highlight-options">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <main>
+            <div class="glass-panel" id="progress-panel" style="margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                    <span>Unlock Progress</span>
+                    <span id="progress-text">0/10 chests unlocked</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="progress-bar"></div>
+                </div>
+            </div>
+
+            <div class="chests-grid" id="chests-grid"></div>
+
+            <div class="glass-panel" id="final-congrats-page">
+                <h2>🌟 Congratulations! You did it! 🥳</h2>
+                <p style="font-size: 1.1rem; margin-top: 1rem;color: var(--success);text-shadow: 0 0 15px rgba(3, 218, 198, 0.5);">
+                    Every chest is opened, revealing the full story. I truly hope you enjoyed this little journey.
+                </p>
+                <p style="margin-top: 1.5rem; font-weight: 600; color: var(--accent);">
+                    How was the experience for you?
+                </p>
+                <div class="feedback-buttons">
+                    <button class="feedback-btn" onclick="sendFeedback('like')" id="feedback-like" title="I loved it!">❤️</button>
+                    <button class="feedback-btn" onclick="sendFeedback('dislike')" id="feedback-dislike" title="Could be better">👀</button>
+                </div>
+
+                <div id="feedback-message" style="margin-top: 1rem; color: var(--accent); font-weight: 700;"></div>
+
+                <div id="restart-input-wrapper">
+                    <input type="text" id="restart-input" >
+                </div>
+
+                <p style="margin-top: 2rem; font-size: 0.9rem; color: var(--text-muted);">
+                    Thank you for being the amazing person you are. ❤️
+                </p>
+            </div>
+        </main>
+
+        <aside class="sidebar">
+            <div class="glass-panel" id="sidebar-status" style="text-align: center;">
+                <h3>Status</h3>
+                <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-muted);">Next Key Generation:</p>
+                <div class="timer-display" id="cooldown-timer">--:--</div>
+                
+                <div id="pending-key-section" style="display: none;">
+                    <hr style="border-color: var(--glass-border); margin: 1rem 0;">
+                    <p style="color: var(--accent);">✨ A new key is ready!</p>
+                    <button class="btn" style="margin-top: 0.5rem; width: 100%;" onclick="openScratchModal()">Scratch to Reveal</button>
+                </div>
+            </div>
+
+            <div id="admin-panel" class="glass-panel">
+                <h3 style="color: var(--danger);">Admin Control</h3>
+                <div style="display: grid; gap: 0.5rem; margin-top: 1rem;">
+                    <button class="btn btn-sm" onclick="adminForceGenerate()">Force Generate Key</button>
+                    <button class="btn btn-sm" onclick="adminForceReveal()">Force Reveal Pending</button>
+                    <button class="btn btn-sm btn-danger" onclick="adminResetAll()">RESET ALL DATA</button>
+                </div>
+                <div class="admin-log" id="admin-log">
+                    <div>System initialized...</div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div class="modal-overlay" id="tutorial-modal">
+        <div class="modal-content">
+            <h2 style="color: var(--accent);">Welcome, Shreya! 💖</h2>
+            <p style="margin: 1rem 0;">This is your personal digital treasure chest.</p>
+            <ul style="text-align: left; margin-bottom: 1.5rem; padding-left: 1.5rem; line-height: 1.6; font-size: 0.9rem;">
+                <li>There are 10 locked chests.</li>
+                <li>Every **30 days**, a new key is created.</li>
+                <li>Use the "Scratch Card" to reveal the code.</li>
+                <li>Unlocking a chest reveals a digital gift!</li>
+            </ul>
+            <button class="btn" onclick="closeTutorial()">Got it! Let's go!</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="scratch-modal">
+        <div class="modal-content">
+            <h3>✨ Your Key is Here</h3>
+            <p style="margin-bottom: 1rem;">Scratch to reveal. If auto-copy fails, <b>long-press</b> the code to copy.</p>
+            
+            <div class="scratch-wrapper" id="scratch-wrapper">
+                <div class="hidden-code-layer">
+                    <span style="font-size: 0.8rem; color: #666;">KEY CODE:</span>
+                    <span id="revealed-key-text" style="font-family: monospace; font-size: 1.4rem;">...</span>
+                    <span id="target-chest-hint" style="font-size: 0.7rem; margin-top: 5px; color: var(--accent);"></span>
+                </div>
+                
+                <canvas id="scratch-canvas" class="scratch-canvas"></canvas>
+
+                <div id="scratch-overlay-text" class="scratch-overlay-text">SCRATCH ME</div>
+            </div>
+
+            <button class="btn" id="close-scratch-btn" style="margin-top: 1rem;" disabled>Keep Scratching...</button>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal for Chest 6 Image Viewing -->
+    <div class="lightbox-modal" id="lightbox-modal">
+        <div class="lightbox-container">
+            <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+            <div class="lightbox-image-wrapper">
+                <img id="lightbox-image" class="lightbox-image" src="" alt="Gallery Image">
+            </div>
+            <div class="lightbox-controls">
+                <button class="lightbox-btn" id="lightbox-prev" onclick="lightboxPrev()">← Previous</button>
+                <div class="lightbox-counter"><span id="lightbox-index">1</span> / <span id="lightbox-total">4</span></div>
+                <button class="lightbox-btn" id="lightbox-next" onclick="lightboxNext()">Next →</button>
+            </div>
+            <div class="lightbox-info">
+                <p>Use arrow keys ← → or swipe to navigate | Press ESC to close</p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2026 Shreya’s Secret Chests. Made with love.</p>
+        <span class="reset-link" onclick="uiSoftReset()">Experiencing issues? Reset mobile view</span>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
