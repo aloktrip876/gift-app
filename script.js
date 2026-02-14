@@ -1336,13 +1336,19 @@
                 purple: { bg_dark: '#05020a', bg_light: '#0d0615', accent: '#9d4edd', accent_glow: '#c77dff', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#c0c0c0', danger: '#ff5f5f', success: '#03dac6', name: 'Purple' },
                 blue: { bg_dark: '#050d1f', bg_light: '#0a1533', accent: '#4361ee', accent_glow: '#5a77f5', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#b0c4de', danger: '#ff5f5f', success: '#03dac6', name: 'Blue' },
                 pink: { bg_dark: '#25071f', bg_light: '#4d0a2d', accent: '#ff1493', accent_glow: '#ff69b4', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#ffb6d9', danger: '#ff1744', success: '#03dac6', name: 'Pink' },
-                green: { bg_dark: '#0a1f15', bg_light: '#0f3d29', accent: '#06d6a0', accent_glow: '#52e1b8', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#98d8c8', danger: '#ff5f5f', success: '#06d6a0', name: 'Green' }
+                green: { bg_dark: '#0a1f15', bg_light: '#0f3d29', accent: '#06d6a0', accent_glow: '#52e1b8', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#98d8c8', danger: '#ff5f5f', success: '#06d6a0', name: 'Green' },
+                amber: { bg_dark: '#1e1305', bg_light: '#3a2208', accent: '#ffb703', accent_glow: '#ffd166', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff9ec', text_muted: '#e6c892', danger: '#ff6b6b', success: '#16d3a5', name: 'Amber' },
+                cyan: { bg_dark: '#04161b', bg_light: '#082831', accent: '#00bcd4', accent_glow: '#4dd0e1', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#effcff', text_muted: '#9fd1d8', danger: '#ff6b6b', success: '#26d09f', name: 'Cyan' },
+                rose: { bg_dark: '#1a0a10', bg_light: '#31111d', accent: '#ff6f91', accent_glow: '#ff9db5', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff7fa', text_muted: '#e1a9ba', danger: '#ff4f72', success: '#20d09f', name: 'Rose' }
             },
             light: {
                 purple: { bg_dark: '#f3e5ff', bg_light: '#ffffff', accent: '#7e57c2', accent_glow: '#9575cd', glass: 'rgba(126, 87, 194, 0.08)', glass_lighter: 'rgba(126, 87, 194, 0.12)', glass_border: 'rgba(126, 87, 194, 0.2)', text_main: '#1a0f35', text_muted: '#4a3d5f', danger: '#d32f2f', success: '#00897b', name: 'Purple' },
                 blue: { bg_dark: '#e1f5ff', bg_light: '#ffffff', accent: '#0288d1', accent_glow: '#039be5', glass: 'rgba(2, 136, 209, 0.08)', glass_lighter: 'rgba(2, 136, 209, 0.12)', glass_border: 'rgba(2, 136, 209, 0.2)', text_main: '#00286b', text_muted: '#004a99', danger: '#d32f2f', success: '#00897b', name: 'Blue' },
                 pink: { bg_dark: '#fce4ff', bg_light: '#ffffff', accent: '#d81b60', accent_glow: '#ec407a', glass: 'rgba(216, 27, 96, 0.08)', glass_lighter: 'rgba(216, 27, 96, 0.12)', glass_border: 'rgba(216, 27, 96, 0.2)', text_main: '#6a0030', text_muted: '#a01850', danger: '#c41c3b', success: '#00897b', name: 'Pink' },
-                green: { bg_dark: '#e0f7f4', bg_light: '#ffffff', accent: '#00897b', accent_glow: '#26a69a', glass: 'rgba(0, 137, 123, 0.08)', glass_lighter: 'rgba(0, 137, 123, 0.12)', glass_border: 'rgba(0, 137, 123, 0.2)', text_main: '#002520', text_muted: '#003d33', danger: '#d32f2f', success: '#00897b', name: 'Green' }
+                green: { bg_dark: '#e0f7f4', bg_light: '#ffffff', accent: '#00897b', accent_glow: '#26a69a', glass: 'rgba(0, 137, 123, 0.08)', glass_lighter: 'rgba(0, 137, 123, 0.12)', glass_border: 'rgba(0, 137, 123, 0.2)', text_main: '#002520', text_muted: '#003d33', danger: '#d32f2f', success: '#00897b', name: 'Green' },
+                amber: { bg_dark: '#fff6df', bg_light: '#ffffff', accent: '#c98900', accent_glow: '#e0a824', glass: 'rgba(201, 137, 0, 0.08)', glass_lighter: 'rgba(201, 137, 0, 0.12)', glass_border: 'rgba(201, 137, 0, 0.2)', text_main: '#4b2f00', text_muted: '#7a5608', danger: '#c43b2f', success: '#0a8f7c', name: 'Amber' },
+                cyan: { bg_dark: '#e0f7fb', bg_light: '#ffffff', accent: '#008ba3', accent_glow: '#17a7bf', glass: 'rgba(0, 139, 163, 0.08)', glass_lighter: 'rgba(0, 139, 163, 0.12)', glass_border: 'rgba(0, 139, 163, 0.2)', text_main: '#00333b', text_muted: '#1f5963', danger: '#c43b2f', success: '#0a8f7c', name: 'Cyan' },
+                rose: { bg_dark: '#ffeef3', bg_light: '#ffffff', accent: '#c93f67', accent_glow: '#de5d82', glass: 'rgba(201, 63, 103, 0.08)', glass_lighter: 'rgba(201, 63, 103, 0.12)', glass_border: 'rgba(201, 63, 103, 0.2)', text_main: '#4a1022', text_muted: '#7d3049', danger: '#b53252', success: '#0a8f7c', name: 'Rose' }
             }
         };
 
@@ -1366,14 +1372,20 @@
                 purple: { accent: '#6b2fb5', accent_glow: '#8a4dd0' },
                 blue: { accent: '#1a3fd1', accent_glow: '#3a5fe8' },
                 pink: { accent: '#c41c5c', accent_glow: '#e84670' },
-                green: { accent: '#008866', accent_glow: '#1aa885' }
+                green: { accent: '#008866', accent_glow: '#1aa885' },
+                amber: { accent: '#cc8a00', accent_glow: '#e6aa2d' },
+                cyan: { accent: '#008ea6', accent_glow: '#2bb2ca' },
+                rose: { accent: '#c33f67', accent_glow: '#df6688' }
             };
             
             const highlightLight = {
                 purple: { accent: '#5e35b1', accent_glow: '#7e57c2' },
                 blue: { accent: '#0066cc', accent_glow: '#0288d1' },
                 pink: { accent: '#b91c5c', accent_glow: '#d81b60' },
-                green: { accent: '#006b5a', accent_glow: '#00897b' }
+                green: { accent: '#006b5a', accent_glow: '#00897b' },
+                amber: { accent: '#ad7400', accent_glow: '#c98d1a' },
+                cyan: { accent: '#006f85', accent_glow: '#008ba3' },
+                rose: { accent: '#a93457', accent_glow: '#c45173' }
             };
 
             const activeHighlightSet = theme === 'light' ? highlightLight : highlightColors;
@@ -1425,14 +1437,20 @@
                 purple: '#6b2fb5',
                 blue: '#1a3fd1',
                 pink: '#c41c5c',
-                green: '#008866'
+                green: '#008866',
+                amber: '#cc8a00',
+                cyan: '#008ea6',
+                rose: '#c33f67'
             };
             
             const highlightColorsLight = {
                 purple: '#5e35b1',
                 blue: '#0066cc',
                 pink: '#b91c5c',
-                green: '#006b5a'
+                green: '#006b5a',
+                amber: '#ad7400',
+                cyan: '#006f85',
+                rose: '#a93457'
             };
             
             const highlightSet = theme === 'light' ? highlightColorsLight : highlightColorsDark;
@@ -1472,7 +1490,24 @@
             // Update highlight options
             if (highlightContainer) {
                 const highlightButtons = highlightContainer.querySelectorAll('.color-option');
-                const highlightKeys = ['purple', 'blue', 'pink', 'green'];
+                const highlightPalette = theme === 'light' ? {
+                    purple: '#5e35b1',
+                    blue: '#0066cc',
+                    pink: '#b91c5c',
+                    green: '#006b5a',
+                    amber: '#ad7400',
+                    cyan: '#006f85',
+                    rose: '#a93457'
+                } : {
+                    purple: '#6b2fb5',
+                    blue: '#1a3fd1',
+                    pink: '#c41c5c',
+                    green: '#008866',
+                    amber: '#cc8a00',
+                    cyan: '#008ea6',
+                    rose: '#c33f67'
+                };
+                const highlightKeys = Object.keys(highlightPalette);
                 highlightButtons.forEach((btn, idx) => {
                     btn.classList.remove('active');
                     if (idx < highlightKeys.length && highlightKeys[idx] === currentHighlight) {
