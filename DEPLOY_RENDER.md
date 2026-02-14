@@ -20,7 +20,7 @@ git push
 
 In Render -> Service -> Environment, fill:
 
-- `GOOGLE_SHEET_ID` = `17dAEcrwKkWk_r7oerdVvYX_YspWC6Wxeo-Sd63aY6fM`
+- `GOOGLE_SHEET_ID` = your Google Sheet ID
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL` = your service account email
 - `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` = full private key string
 

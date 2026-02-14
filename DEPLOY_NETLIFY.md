@@ -21,7 +21,7 @@ git push
 Site settings -> Environment variables:
 
 - `ADMIN_KEY` = your secret admin key
-- `GOOGLE_SHEET_ID` = `17dAEcrwKkWk_r7oerdVvYX_YspWC6Wxeo-Sd63aY6fM`
+- `GOOGLE_SHEET_ID` = your Google Sheet ID
 - `GOOGLE_SHEET_TAB` = `States`
 - `GOOGLE_STATE_TAB` = `StateStore`
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL` = service-account email
