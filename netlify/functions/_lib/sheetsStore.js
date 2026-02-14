@@ -195,48 +195,39 @@ function toIso(ms) {
 function buildAdminTable(states) {
     const headers = [
         "client_id",
-        "updated_at_ms",
-        "updated_at_iso",
+        "last_updated",
         "tutorial_seen",
-        "unlocked_count",
-        "total_chests",
-        "pending_key_code",
-        "pending_key_target_chest",
+        "progress",
+        "unlocked_chests",
+        "pending_target_chest",
         "pending_key_revealed",
-        "last_generation_time_ms",
-        "last_generation_time_iso",
-        "feedback_sent",
+        "last_key_generated",
+        "feedback",
         "theme",
         "color_scheme",
-        "highlight",
-        "admin_history_count",
-        "has_puzzle_state",
-        "state_json"
+        "highlight"
     ];
 
     const rows = states.map((entry) => {
         const s = entry.state || withStateDefaults(null);
-        const unlocked = Array.isArray(s.chests) ? s.chests.filter((c) => c && c.isLocked === false).length : 0;
-        const total = Array.isArray(s.chests) ? s.chests.length : 0;
+        const allChests = Array.isArray(s.chests) ? s.chests : [];
+        const unlockedChestIds = allChests.filter((c) => c && c.isLocked === false).map((c) => c.id);
+        const unlocked = unlockedChestIds.length;
+        const total = allChests.length;
+        const progress = total > 0 ? `${unlocked}/${total}` : "0/0";
         return [
             entry.clientId,
-            entry.updatedAt || 0,
             toIso(entry.updatedAt),
-            !!s.tutorialSeen,
-            unlocked,
-            total,
-            s.pendingKey ? (s.pendingKey.code || "") : "",
+            s.tutorialSeen ? "Yes" : "No",
+            progress,
+            unlockedChestIds.join(", "),
             s.pendingKey ? (s.pendingKey.targetChestId || "") : "",
-            s.pendingKey ? !!s.pendingKey.isRevealed : "",
-            s.lastGenerationTime || 0,
+            s.pendingKey ? (s.pendingKey.isRevealed ? "Yes" : "No") : "",
             toIso(s.lastGenerationTime),
             s.feedbackSent || "",
             s.ui && s.ui.theme ? s.ui.theme : "",
             s.ui && s.ui.colorScheme ? s.ui.colorScheme : "",
-            s.ui && s.ui.highlight ? s.ui.highlight : "",
-            Array.isArray(s.adminHistory) ? s.adminHistory.length : 0,
-            !!s.puzzleState,
-            JSON.stringify(s)
+            s.ui && s.ui.highlight ? s.ui.highlight : ""
         ];
     });
 
