@@ -1396,12 +1396,8 @@
                 emerald: { bg_dark: '#07180f', bg_light: '#0f2d1c', accent: '#0f9d75', accent_glow: '#43c99e', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#f4fff8', text_muted: '#9ccfb9', danger: '#ff6b6b', success: '#0f9d75', name: 'Emerald' },
                 ruby: { bg_dark: '#1a070d', bg_light: '#34101a', accent: '#c92a4b', accent_glow: '#ef5c7a', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff5f7', text_muted: '#e2a4b2', danger: '#ff4f72', success: '#20d09f', name: 'Ruby' },
                 gold: { bg_dark: '#1a1204', bg_light: '#352308', accent: '#c9931a', accent_glow: '#e0bb55', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff9ec', text_muted: '#e6c892', danger: '#ff6b6b', success: '#16d3a5', name: 'Gold' },
-                purple: { bg_dark: '#05020a', bg_light: '#0d0615', accent: '#9d4edd', accent_glow: '#c77dff', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#c0c0c0', danger: '#ff5f5f', success: '#03dac6', name: 'Purple' },
-                blue: { bg_dark: '#050d1f', bg_light: '#0a1533', accent: '#4361ee', accent_glow: '#5a77f5', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#ffffff', text_muted: '#b0c4de', danger: '#ff5f5f', success: '#03dac6', name: 'Blue' },
                 cyan: { bg_dark: '#04161b', bg_light: '#082831', accent: '#00bcd4', accent_glow: '#4dd0e1', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#effcff', text_muted: '#9fd1d8', danger: '#ff6b6b', success: '#26d09f', name: 'Cyan' },
-                rose: { bg_dark: '#1a0a10', bg_light: '#31111d', accent: '#ff6f91', accent_glow: '#ff9db5', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff7fa', text_muted: '#e1a9ba', danger: '#ff4f72', success: '#20d09f', name: 'Rose' },
-                amber: { bg_dark: '#1e1305', bg_light: '#3a2208', accent: '#ffb703', accent_glow: '#ffd166', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff9ec', text_muted: '#e6c892', danger: '#ff6b6b', success: '#16d3a5', name: 'Amber' },
-                teal: { bg_dark: '#041713', bg_light: '#082a23', accent: '#12b886', accent_glow: '#3dd6a4', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#effff8', text_muted: '#9bd7c6', danger: '#ff6b6b', success: '#12b886', name: 'Teal' }
+                rose: { bg_dark: '#1a0a10', bg_light: '#31111d', accent: '#ff6f91', accent_glow: '#ff9db5', glass: 'rgba(255, 255, 255, 0.04)', glass_lighter: 'rgba(255, 255, 255, 0.08)', glass_border: 'rgba(255, 255, 255, 0.1)', text_main: '#fff7fa', text_muted: '#e1a9ba', danger: '#ff4f72', success: '#20d09f', name: 'Rose' }
             },
             light: {
                 amethyst: { bg_dark: '#f3ebff', bg_light: '#ffffff', accent: '#6f42c1', accent_glow: '#8b5dd3', glass: 'rgba(111, 66, 193, 0.08)', glass_lighter: 'rgba(111, 66, 193, 0.12)', glass_border: 'rgba(111, 66, 193, 0.2)', text_main: '#241344', text_muted: '#4f3d74', danger: '#d32f2f', success: '#00897b', name: 'Amethyst' },
@@ -1409,12 +1405,8 @@
                 emerald: { bg_dark: '#e9f8f0', bg_light: '#ffffff', accent: '#0c7f5f', accent_glow: '#2d9f7f', glass: 'rgba(12, 127, 95, 0.08)', glass_lighter: 'rgba(12, 127, 95, 0.12)', glass_border: 'rgba(12, 127, 95, 0.2)', text_main: '#0f3a2a', text_muted: '#2f6b58', danger: '#d32f2f', success: '#0c7f5f', name: 'Emerald' },
                 ruby: { bg_dark: '#ffeef2', bg_light: '#ffffff', accent: '#b82a49', accent_glow: '#d04867', glass: 'rgba(184, 42, 73, 0.08)', glass_lighter: 'rgba(184, 42, 73, 0.12)', glass_border: 'rgba(184, 42, 73, 0.2)', text_main: '#5a1024', text_muted: '#874058', danger: '#b82a49', success: '#0a8f7c', name: 'Ruby' },
                 gold: { bg_dark: '#fff7e8', bg_light: '#ffffff', accent: '#a87406', accent_glow: '#c28e1b', glass: 'rgba(168, 116, 6, 0.08)', glass_lighter: 'rgba(168, 116, 6, 0.12)', glass_border: 'rgba(168, 116, 6, 0.2)', text_main: '#4d3205', text_muted: '#7a5b22', danger: '#c43b2f', success: '#0a8f7c', name: 'Gold' },
-                purple: { bg_dark: '#f3e5ff', bg_light: '#ffffff', accent: '#7e57c2', accent_glow: '#9575cd', glass: 'rgba(126, 87, 194, 0.08)', glass_lighter: 'rgba(126, 87, 194, 0.12)', glass_border: 'rgba(126, 87, 194, 0.2)', text_main: '#1a0f35', text_muted: '#4a3d5f', danger: '#d32f2f', success: '#00897b', name: 'Purple' },
-                blue: { bg_dark: '#e1f5ff', bg_light: '#ffffff', accent: '#0288d1', accent_glow: '#039be5', glass: 'rgba(2, 136, 209, 0.08)', glass_lighter: 'rgba(2, 136, 209, 0.12)', glass_border: 'rgba(2, 136, 209, 0.2)', text_main: '#00286b', text_muted: '#004a99', danger: '#d32f2f', success: '#00897b', name: 'Blue' },
                 cyan: { bg_dark: '#e0f7fb', bg_light: '#ffffff', accent: '#008ba3', accent_glow: '#17a7bf', glass: 'rgba(0, 139, 163, 0.08)', glass_lighter: 'rgba(0, 139, 163, 0.12)', glass_border: 'rgba(0, 139, 163, 0.2)', text_main: '#00333b', text_muted: '#1f5963', danger: '#c43b2f', success: '#0a8f7c', name: 'Cyan' },
-                rose: { bg_dark: '#ffeef3', bg_light: '#ffffff', accent: '#c93f67', accent_glow: '#de5d82', glass: 'rgba(201, 63, 103, 0.08)', glass_lighter: 'rgba(201, 63, 103, 0.12)', glass_border: 'rgba(201, 63, 103, 0.2)', text_main: '#4a1022', text_muted: '#7d3049', danger: '#b53252', success: '#0a8f7c', name: 'Rose' },
-                amber: { bg_dark: '#fff6df', bg_light: '#ffffff', accent: '#c98900', accent_glow: '#e0a824', glass: 'rgba(201, 137, 0, 0.08)', glass_lighter: 'rgba(201, 137, 0, 0.12)', glass_border: 'rgba(201, 137, 0, 0.2)', text_main: '#4b2f00', text_muted: '#7a5608', danger: '#c43b2f', success: '#0a8f7c', name: 'Amber' },
-                teal: { bg_dark: '#e2faf3', bg_light: '#ffffff', accent: '#0f8f6a', accent_glow: '#2bb385', glass: 'rgba(15, 143, 106, 0.08)', glass_lighter: 'rgba(15, 143, 106, 0.12)', glass_border: 'rgba(15, 143, 106, 0.2)', text_main: '#083628', text_muted: '#276351', danger: '#c43b2f', success: '#0a8f7c', name: 'Teal' }
+                rose: { bg_dark: '#ffeef3', bg_light: '#ffffff', accent: '#c93f67', accent_glow: '#de5d82', glass: 'rgba(201, 63, 103, 0.08)', glass_lighter: 'rgba(201, 63, 103, 0.12)', glass_border: 'rgba(201, 63, 103, 0.2)', text_main: '#4a1022', text_muted: '#7d3049', danger: '#b53252', success: '#0a8f7c', name: 'Rose' }
             }
         };
 
@@ -1444,12 +1436,8 @@
                 emerald: { accent: '#0e8b66', accent_glow: '#2fb58b' },
                 ruby: { accent: '#b92647', accent_glow: '#dc4c6f' },
                 gold: { accent: '#b47b00', accent_glow: '#d9a62b' },
-                purple: { accent: '#6b2fb5', accent_glow: '#8a4dd0' },
-                blue: { accent: '#1a3fd1', accent_glow: '#3a5fe8' },
                 cyan: { accent: '#008ea6', accent_glow: '#2bb2ca' },
-                rose: { accent: '#c33f67', accent_glow: '#df6688' },
-                amber: { accent: '#cc8a00', accent_glow: '#e6aa2d' },
-                teal: { accent: '#0f9a72', accent_glow: '#33b98f' }
+                rose: { accent: '#c33f67', accent_glow: '#df6688' }
             };
             
             const highlightLight = {
@@ -1458,12 +1446,8 @@
                 emerald: { accent: '#0c7f5f', accent_glow: '#2d9f7f' },
                 ruby: { accent: '#a62945', accent_glow: '#c84866' },
                 gold: { accent: '#9f6f08', accent_glow: '#bc8a1f' },
-                purple: { accent: '#5e35b1', accent_glow: '#7e57c2' },
-                blue: { accent: '#0066cc', accent_glow: '#0288d1' },
                 cyan: { accent: '#006f85', accent_glow: '#008ba3' },
-                rose: { accent: '#a93457', accent_glow: '#c45173' },
-                amber: { accent: '#ad7400', accent_glow: '#c98d1a' },
-                teal: { accent: '#0c7f5f', accent_glow: '#2d9f7f' }
+                rose: { accent: '#a93457', accent_glow: '#c45173' }
             };
 
             const activeHighlightSet = theme === 'light' ? highlightLight : highlightColors;
@@ -1521,12 +1505,8 @@
                 emerald: '#0e8b66',
                 ruby: '#b92647',
                 gold: '#b47b00',
-                purple: '#6b2fb5',
-                blue: '#1a3fd1',
                 cyan: '#008ea6',
-                rose: '#c33f67',
-                amber: '#cc8a00',
-                teal: '#0f9a72'
+                rose: '#c33f67'
             };
             
             const highlightColorsLight = {
@@ -1535,12 +1515,8 @@
                 emerald: '#0c7f5f',
                 ruby: '#a62945',
                 gold: '#9f6f08',
-                purple: '#5e35b1',
-                blue: '#0066cc',
                 cyan: '#006f85',
-                rose: '#a93457',
-                amber: '#ad7400',
-                teal: '#0c7f5f'
+                rose: '#a93457'
             };
             
             const highlightSet = theme === 'light' ? highlightColorsLight : highlightColorsDark;
@@ -1574,6 +1550,7 @@
                 picker.addEventListener('input', () => {
                     state.ui.customSchemeColor = normalizeHexColor(picker.value, '#6b2fb5');
                     customSchemeSwatch.style.background = state.ui.customSchemeColor;
+                    state.ui.colorScheme = 'custom';
                     applyColorScheme('custom', state.ui.highlight || 'amethyst');
                 });
                 picker.addEventListener('change', () => picker.remove());
@@ -1598,6 +1575,7 @@
                 picker.addEventListener('input', () => {
                     state.ui.customHighlightColor = normalizeHexColor(picker.value, '#6b2fb5');
                     customHighlightSwatch.style.background = state.ui.customHighlightColor;
+                    state.ui.highlight = 'custom';
                     applyColorScheme(state.ui.colorScheme || 'amethyst', 'custom');
                 });
                 picker.addEventListener('change', () => picker.remove());
@@ -1634,24 +1612,16 @@
                     emerald: '#0c7f5f',
                     ruby: '#a62945',
                     gold: '#9f6f08',
-                    purple: '#5e35b1',
-                    blue: '#0066cc',
                     cyan: '#006f85',
-                    rose: '#a93457',
-                    amber: '#ad7400',
-                    teal: '#0c7f5f'
+                    rose: '#a93457'
                 } : {
                     amethyst: '#6b2fb5',
                     sapphire: '#1d4fb8',
                     emerald: '#0e8b66',
                     ruby: '#b92647',
                     gold: '#b47b00',
-                    purple: '#6b2fb5',
-                    blue: '#1a3fd1',
                     cyan: '#008ea6',
-                    rose: '#c33f67',
-                    amber: '#cc8a00',
-                    teal: '#0f9a72'
+                    rose: '#c33f67'
                 };
                 const highlightKeys = [...Object.keys(highlightPalette), 'custom'];
                 highlightButtons.forEach((btn, idx) => {
