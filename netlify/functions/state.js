@@ -4,7 +4,6 @@ const {
     getAuthenticatedSession,
     getClientState,
     json,
-    logAccessEvent,
     upsertClientState,
     withStateDefaults
 } = require("./_lib/sheetsStore");
@@ -17,12 +16,6 @@ exports.handler = async (event) => {
         }
 
         if (event.httpMethod === "GET") {
-            try {
-                await logAccessEvent(session.userId, "visit", session.sessionId);
-            } catch (err) {
-                // Never block page access on logging failures.
-                console.error("Access log failed:", err.message || err);
-            }
             const saved = await getClientState(session.userId);
             const state = withStateDefaults(saved);
             if (!saved) await upsertClientState(session.userId, state);

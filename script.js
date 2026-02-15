@@ -25,7 +25,6 @@
         const API_STATE_URL = '/api/state';
         const API_RESET_URL = '/api/reset';
         const API_AUTH_LOGIN_URL = '/api/auth/login';
-        const API_AUTH_SESSION_URL = '/api/auth/session';
         const API_AUTH_LOGOUT_URL = '/api/auth/logout';
         const API_AUTH_HEARTBEAT_URL = '/api/auth/heartbeat';
         const API_ADMIN_USERS_URL = '/api/admin/users';
@@ -73,7 +72,9 @@
         let loginAttempts = Number(localStorage.getItem('gift_login_attempts') || 0);
         let sessionScreenMs = 0;
         let visibleSince = Date.now();
+        let updateTimerInterval = null;
         let heartbeatInterval = null;
+        let initBindingsApplied = false;
         const analyticsState = {
             rows: [],
             page: 1,
@@ -283,29 +284,6 @@
             if (logoutBtn) logoutBtn.style.display = user ? 'flex' : 'none';
         }
 
-        async function checkSession() {
-            const res = await fetch(API_AUTH_SESSION_URL, { method: 'GET', credentials: 'include' });
-            if (!res.ok) return null;
-            const data = await res.json();
-            if (!data || !data.authenticated) return null;
-            return data.user || null;
-        }
-
-        async function ensureAuthenticated() {
-            const user = await checkSession();
-            if (user) {
-                applyUserPersonalization(user);
-                document.getElementById('login-modal').classList.remove('active');
-                setLoginStatus('');
-                return true;
-            }
-            applyUserPersonalization(null);
-            writeBootProfile(null);
-            document.getElementById('login-modal').classList.add('active');
-            setLoginStatus('Verify your identity to continue.');
-            return false;
-        }
-
         async function submitLogin() {
             const name = (document.getElementById('login-name').value || '').trim();
             const phone = (document.getElementById('login-phone').value || '').trim();
@@ -393,13 +371,10 @@
         async function init() {
             const loginModal = document.getElementById('login-modal');
             if (loginModal && !currentUser) loginModal.classList.remove('active');
-            if (!currentUser) {
-                const ok = await ensureAuthenticated();
-                if (!ok) return;
-            }
-            await loadState();
             initTheme();
-            
+            const ok = await loadState();
+            if (!ok) return;
+             
             if (state.chests.length === 0 || state.chests.length !== TOTAL_CHESTS) {
                 state.chests = CHEST_DATA.map(c => ({
                     id: c.id, isLocked: true, key: null, unlockedAt: null
@@ -417,8 +392,9 @@
             checkKeyGeneration();
             renderChests();
             updateSidebar();
-            
-            setInterval(updateTimer, 1000);
+             
+            if (updateTimerInterval) clearInterval(updateTimerInterval);
+            updateTimerInterval = setInterval(updateTimer, 1000);
             updateTimer(); 
             
             // Setup RESTART listener
@@ -429,28 +405,29 @@
 
             logAdmin("System initialized.");
             
-            window.addEventListener('resize', () => {
-                if (document.getElementById('scratch-modal').classList.contains('active')) {
-                    setupCanvas();
-                }
-            });
+            if (!initBindingsApplied) {
+                window.addEventListener('resize', () => {
+                    if (document.getElementById('scratch-modal').classList.contains('active')) {
+                        setupCanvas();
+                    }
+                });
 
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') {
-                    visibleSince = Date.now();
-                } else {
-                    updateVisibleScreenTime();
-                }
-            });
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        visibleSince = Date.now();
+                    } else {
+                        updateVisibleScreenTime();
+                    }
+                });
 
-            if (!window.__playlistLoadBound) {
                 document.addEventListener('click', (event) => {
                     const anchor = event.target && event.target.closest ? event.target.closest('.playlist-load') : null;
                     if (!anchor) return;
                     event.preventDefault();
                     injectPlaylistEmbed(anchor);
                 });
-                window.__playlistLoadBound = true;
+
+                initBindingsApplied = true;
             }
 
             if (heartbeatInterval) clearInterval(heartbeatInterval);
@@ -1462,8 +1439,12 @@
                     credentials: 'include'
                 });
                 if (res.status === 401) {
-                    await ensureAuthenticated();
-                    throw new Error('Not authenticated');
+                    applyUserPersonalization(null);
+                    writeBootProfile(null);
+                    const loginModal = document.getElementById('login-modal');
+                    if (loginModal) loginModal.classList.add('active');
+                    setLoginStatus('Verify your identity to continue.');
+                    return false;
                 }
                 if (!res.ok) throw new Error(`State load failed: ${res.status}`);
                 const data = await res.json();
@@ -1485,10 +1466,12 @@
                     writeStateCache(state);
                 }
                 if (data && data.user) applyUserPersonalization(data.user);
+                return true;
             } catch (err) {
                 console.error(err);
                 const cached = readStateCache();
                 state = cached ? hydrateState(cached) : createDefaultState();
+                return !!cached;
             }
         }
 
