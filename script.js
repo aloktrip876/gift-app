@@ -519,6 +519,16 @@
                 }
             });
 
+            if (!window.__playlistLoadBound) {
+                document.addEventListener('click', (event) => {
+                    const anchor = event.target && event.target.closest ? event.target.closest('.playlist-load') : null;
+                    if (!anchor) return;
+                    event.preventDefault();
+                    injectPlaylistEmbed(anchor);
+                });
+                window.__playlistLoadBound = true;
+            }
+
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             heartbeatInterval = setInterval(heartbeat, HEARTBEAT_INTERVAL_MS);
         }
@@ -1049,6 +1059,40 @@
             return { preview: '', full: '', download: '' };
         }
 
+        function injectPlaylistEmbed(anchorEl) {
+            if (!anchorEl) return;
+            const src = (anchorEl.getAttribute('data-src') || '').trim();
+            if (!src) return;
+            if (!/^https:\/\/open\.spotify\.com\/embed\//i.test(src)) {
+                anchorEl.textContent = 'Invalid Spotify embed URL';
+                return;
+            }
+            const wrapper = document.createElement('div');
+            wrapper.className = 'media-wrapper';
+            wrapper.innerHTML = `<iframe src="${escapeHtmlAttr(src)}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+            anchorEl.replaceWith(wrapper);
+        }
+
+        function normalizeSpotifyEmbedUrl(value) {
+            const raw = (value || '').trim();
+            if (!raw) return '';
+            if (/^https:\/\/open\.spotify\.com\/embed\//i.test(raw)) return raw;
+            const m = raw.match(/^https:\/\/open\.spotify\.com\/(playlist|album|track)\/([A-Za-z0-9]+)(\?.*)?$/i);
+            if (!m) return '';
+            const type = m[1].toLowerCase();
+            const id = m[2];
+            return `https://open.spotify.com/embed/${type}/${id}?utm_source=generator`;
+        }
+
+        function normalizeSpotifyPublicUrl(value) {
+            const raw = (value || '').trim();
+            if (!raw) return '';
+            if (/^https:\/\/open\.spotify\.com\/(playlist|album|track)\//i.test(raw)) return raw;
+            const m = raw.match(/^https:\/\/open\.spotify\.com\/embed\/(playlist|album|track)\/([A-Za-z0-9]+)(\?.*)?$/i);
+            if (!m) return '';
+            return `https://open.spotify.com/${m[1].toLowerCase()}/${m[2]}`;
+        }
+
         function getGiftHTML(type, content, chestId) { 
             let html = '';
             switch(type) {
@@ -1073,7 +1117,20 @@
                     html += '</div>';
                     break;
                 }
-                case 'playlist': html = content; break;
+                case 'playlist': {
+                    let rawUrl = '';
+                    if (typeof content === 'string') {
+                        rawUrl = content;
+                    } else if (content && typeof content === 'object') {
+                        rawUrl = content.url || content.src || content.embed || '';
+                    }
+                    const embedSrc = normalizeSpotifyEmbedUrl(rawUrl);
+                    const publicUrl = normalizeSpotifyPublicUrl(rawUrl);
+                    html = embedSrc
+                        ? `<div class="media-wrapper"><iframe src="${escapeHtmlAttr(embedSrc)}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe></div>${publicUrl ? `<a href="${escapeHtmlAttr(publicUrl)}" target="_blank" rel="noopener noreferrer" class="gift-link-card" style="margin-top:10px;">Open in Spotify ↗</a>` : ''}`
+                        : `<p class="gift-text">Invalid Spotify playlist link.</p>`;
+                    break;
+                }
                 case 'video': html = `<div class="media-wrapper"><iframe src="${content}" allowfullscreen></iframe></div>`; break;
                 case 'wallpaper': {
                     const wp = normalizeWallpaperContent(content);
