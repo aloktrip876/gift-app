@@ -401,6 +401,9 @@
             const restartInput = document.getElementById('restart-input');
             if (restartInput) {
                 restartInput.addEventListener('input', checkRestartInput);
+                restartInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') checkRestartInput(e);
+                });
             }
 
             logAdmin("System initialized.");
@@ -436,7 +439,10 @@
         
         /* --- FINAL PAGE RESTART LOGIC --- */
         function checkRestartInput(e) {
-            if (e.target.value.toUpperCase() === RESTART_KEYWORD) {
+            const value = (e && e.target && typeof e.target.value === 'string')
+                ? e.target.value.trim().toUpperCase()
+                : '';
+            if (value === RESTART_KEYWORD) {
                 e.target.value = ''; // Clear input immediately
                 adminResetAll();
             }
@@ -866,6 +872,40 @@
                 if(confirm("\ud83d\udea8 WARNING: This will erase ALL progress. Proceed?")) {
                     adminResetAll(); return;
                 }
+            }
+
+            if (userKey === RESTART_KEYWORD) {
+                if(confirm("\ud83d\udea8 WARNING: This will erase ALL progress and restart the experience. Proceed?")) {
+                    adminResetAll(); return;
+                }
+            }
+
+            if (userKey === UNLOCK_ALL_KEY) {
+                const now = Date.now();
+                const pendingCode = state.pendingKey && state.pendingKey.code ? String(state.pendingKey.code).toUpperCase() : '';
+                const shouldConsumePending = !!state.pendingKey && state.pendingKey.targetChestId === id && state.pendingKey.isRevealed && pendingCode === UNLOCK_ALL_KEY;
+
+                state.chests.forEach((c) => {
+                    if (c.isLocked) {
+                        c.isLocked = false;
+                        c.key = UNLOCK_ALL_KEY;
+                        c.unlockedAt = c.unlockedAt || now;
+                    }
+                });
+                state.contentAccessTimes = state.contentAccessTimes || {};
+                if (shouldConsumePending) state.pendingKey = null;
+
+                saveState(true);
+                deferFinalReveal = true;
+                renderChests();
+                updateSidebar();
+                fireConfetti();
+                setTimeout(() => {
+                    deferFinalReveal = false;
+                    renderChests();
+                }, 1100);
+                if (input) input.value = '';
+                return;
             }
 
             const chest = state.chests.find(c => c.id === id);
