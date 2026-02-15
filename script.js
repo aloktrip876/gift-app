@@ -1140,9 +1140,8 @@
                 case 'playlist': {
                     const rawUrl = extractSpotifySourceFromAny(content);
                     const embedSrc = normalizeSpotifyEmbedUrl(rawUrl);
-                    const publicUrl = normalizeSpotifyPublicUrl(rawUrl);
                     html = embedSrc
-                        ? `<div class="media-wrapper"><iframe src="${escapeHtmlAttr(embedSrc)}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe></div>${publicUrl ? `<a href="${escapeHtmlAttr(publicUrl)}" target="_blank" rel="noopener noreferrer" class="gift-link-card" style="margin-top:10px;">Open in Spotify ↗</a>` : ''}`
+                        ? `<div class="media-wrapper spotify-playlist-wrapper"><iframe src="${escapeHtmlAttr(embedSrc)}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe></div>`
                         : `<p class="gift-text">Invalid Spotify playlist link.</p>`;
                     break;
                 }
