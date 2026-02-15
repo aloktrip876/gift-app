@@ -1084,6 +1084,26 @@
             return `https://open.spotify.com/embed/${type}/${id}?utm_source=generator`;
         }
 
+        function extractSpotifySourceFromAny(content) {
+            if (typeof content === 'string') {
+                const raw = content.trim();
+                if (!raw) return '';
+                // Legacy HTML format support:
+                // <a class="playlist-load" data-src="https://open.spotify.com/embed/playlist/...">
+                const dataSrcMatch = raw.match(/data-src\s*=\s*["']([^"']+)["']/i);
+                if (dataSrcMatch && dataSrcMatch[1]) return dataSrcMatch[1].trim();
+
+                const hrefMatch = raw.match(/href\s*=\s*["']([^"']+)["']/i);
+                if (hrefMatch && hrefMatch[1]) return hrefMatch[1].trim();
+
+                return raw;
+            }
+            if (content && typeof content === 'object') {
+                return (content.url || content.src || content.embed || '').trim();
+            }
+            return '';
+        }
+
         function normalizeSpotifyPublicUrl(value) {
             const raw = (value || '').trim();
             if (!raw) return '';
@@ -1118,12 +1138,7 @@
                     break;
                 }
                 case 'playlist': {
-                    let rawUrl = '';
-                    if (typeof content === 'string') {
-                        rawUrl = content;
-                    } else if (content && typeof content === 'object') {
-                        rawUrl = content.url || content.src || content.embed || '';
-                    }
+                    const rawUrl = extractSpotifySourceFromAny(content);
                     const embedSrc = normalizeSpotifyEmbedUrl(rawUrl);
                     const publicUrl = normalizeSpotifyPublicUrl(rawUrl);
                     html = embedSrc
