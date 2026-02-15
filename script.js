@@ -127,6 +127,64 @@
             }
         }
 
+        const BOOT_PROFILE_KEY = 'gift_boot_profile';
+
+        function writeBootProfile(profile) {
+            try {
+                if (!profile || typeof profile !== 'object') {
+                    localStorage.removeItem(BOOT_PROFILE_KEY);
+                    return;
+                }
+                localStorage.setItem(BOOT_PROFILE_KEY, JSON.stringify(profile));
+            } catch (err) {
+                // Ignore storage errors.
+            }
+        }
+
+        function readBootProfile() {
+            try {
+                const raw = localStorage.getItem(BOOT_PROFILE_KEY);
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch (err) {
+                return null;
+            }
+        }
+
+        function applyBootProfileToDom() {
+            const profile = readBootProfile();
+            if (!profile || typeof profile !== 'object') return;
+
+            const h1 = document.getElementById('header-title') || document.querySelector('header h1');
+            const p = document.getElementById('header-subtitle') || document.querySelector('header p');
+            const favicon = document.getElementById('site-favicon');
+            const tutorialTitleEl = document.getElementById('tutorial-welcome-title');
+            const tutorialSubtitleEl = document.getElementById('tutorial-welcome-subtitle');
+            const footerBrandTextEl = document.getElementById('footer-brand-text');
+
+            if (typeof profile.pageTitle === 'string' && profile.pageTitle.trim()) {
+                document.title = profile.pageTitle.trim();
+            }
+            if (h1 && typeof profile.headerTitle === 'string' && profile.headerTitle.trim()) {
+                h1.textContent = profile.headerTitle.trim();
+            }
+            if (p && typeof profile.headerSubtitle === 'string' && profile.headerSubtitle.trim()) {
+                p.textContent = profile.headerSubtitle.trim();
+            }
+            if (favicon && typeof profile.tabIcon === 'string' && profile.tabIcon.trim()) {
+                favicon.setAttribute('href', profile.tabIcon.trim());
+            }
+            if (tutorialTitleEl && typeof profile.tutorialTitle === 'string' && profile.tutorialTitle.trim()) {
+                tutorialTitleEl.textContent = profile.tutorialTitle.trim();
+            }
+            if (tutorialSubtitleEl && typeof profile.tutorialSubtitle === 'string' && profile.tutorialSubtitle.trim()) {
+                tutorialSubtitleEl.textContent = profile.tutorialSubtitle.trim();
+            }
+            if (footerBrandTextEl && typeof profile.footerText === 'string' && profile.footerText.trim()) {
+                footerBrandTextEl.textContent = profile.footerText.trim();
+            }
+        }
+
         function getAdminKeyFromUI() {
             const el = document.getElementById('admin-key-input');
             return (el && el.value ? el.value.trim() : '');
@@ -156,18 +214,19 @@
 
             TOTAL_CHESTS = CHEST_DATA.length;
 
-            const h1 = document.querySelector('header h1');
-            const p = document.querySelector('header p');
+            const h1 = document.getElementById('header-title') || document.querySelector('header h1');
+            const p = document.getElementById('header-subtitle') || document.querySelector('header p');
             const favicon = document.getElementById('site-favicon');
             const tutorialTitleEl = document.getElementById('tutorial-welcome-title');
             const tutorialSubtitleEl = document.getElementById('tutorial-welcome-subtitle');
             const footerBrandTextEl = document.getElementById('footer-brand-text');
-            const baseTitle = document.title || 'Secret Chests';
+            const cached = readBootProfile() || {};
+            const baseTitle = document.title || cached.pageTitle || 'Secret Chests';
             const baseHeaderTitle = h1 ? h1.textContent : baseTitle;
             const baseHeaderSubtitle = p ? p.textContent : '';
             const baseTabIcon = (favicon && favicon.getAttribute('href'))
                 ? favicon.getAttribute('href')
-                : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Ctext y="50" font-size="48"%3E%F0%9F%8E%81%3C/text%3E%3C/svg%3E';
+                : (cached.tabIcon || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Ctext y="50" font-size="48"%3E%F0%9F%8E%81%3C/text%3E%3C/svg%3E');
             const baseTutorialTitle = tutorialTitleEl ? tutorialTitleEl.textContent : 'Welcome! \ud83d\udc96';
             const baseTutorialSubtitle = tutorialSubtitleEl ? tutorialSubtitleEl.textContent : '';
             const baseFooterText = footerBrandTextEl ? footerBrandTextEl.textContent : '';
@@ -202,6 +261,18 @@
             if (tutorialSubtitleEl) tutorialSubtitleEl.textContent = tutorialSubtitle;
             if (footerBrandTextEl) footerBrandTextEl.textContent = footerText;
 
+            if (user) {
+                writeBootProfile({
+                    pageTitle: title,
+                    headerTitle,
+                    headerSubtitle: subtitle,
+                    tabIcon,
+                    tutorialTitle,
+                    tutorialSubtitle,
+                    footerText
+                });
+            }
+
             const userInfo = document.getElementById('user-session-info');
             const userName = document.getElementById('session-user-name');
             const logoutBtn = document.getElementById('logout-btn');
@@ -229,6 +300,7 @@
                 return true;
             }
             applyUserPersonalization(null);
+            writeBootProfile(null);
             document.getElementById('login-modal').classList.add('active');
             setLoginStatus('Verify your identity to continue.');
             return false;
@@ -304,6 +376,7 @@
             } catch (err) {
                 console.error('Logout failed:', err);
             }
+            writeBootProfile(null);
             location.reload();
         }
 
@@ -2350,6 +2423,7 @@
             }, 2000);
         });
 
+        applyBootProfileToDom();
         init();
 
 

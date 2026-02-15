@@ -3,18 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>✨ Secret Chests</title>
+    <title></title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link id="site-favicon" rel="icon" href='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Ctext y="50" font-size="48"%3E%F0%9F%8E%81%3C/text%3E%3C/svg%3E'>
     <link rel="stylesheet" href="styles.css">
+    <script>
+        (function () {
+            try {
+                var raw = localStorage.getItem('gift_boot_profile');
+                if (!raw) return;
+                var profile = JSON.parse(raw);
+                if (profile && typeof profile.pageTitle === 'string' && profile.pageTitle.trim()) {
+                    document.title = profile.pageTitle.trim();
+                }
+                if (profile && typeof profile.tabIcon === 'string' && profile.tabIcon.trim()) {
+                    var favicon = document.getElementById('site-favicon');
+                    if (favicon) favicon.setAttribute('href', profile.tabIcon.trim());
+                }
+            } catch (_) {}
+        })();
+    </script>
 </head>
 <body>
 
     <canvas id="confetti-canvas"></canvas>
 
     <header>
-        <h1>✨ Secret Chests</h1>
-        <p>A digital journey of surprises, unlocked one key at a time.</p>
+        <h1 id="header-title"></h1>
+        <p id="header-subtitle"></p>
         <div id="user-session-info" style="display:none; margin-top:0.8rem; font-size:0.85rem; color:var(--text-muted);">
             Logged in as <strong id="session-user-name" style="color:var(--accent);"></strong>
         </div>
@@ -191,8 +207,8 @@
 
     <div class="modal-overlay" id="tutorial-modal">
         <div class="modal-content">
-            <h2 id="tutorial-welcome-title" style="color: var(--accent);">Welcome! 💖</h2>
-            <p id="tutorial-welcome-subtitle" style="margin: 1rem 0;">This is your personal digital treasure chest.</p>
+            <h2 id="tutorial-welcome-title" style="color: var(--accent);"></h2>
+            <p id="tutorial-welcome-subtitle" style="margin: 1rem 0;"></p>
             <ul style="text-align: left; margin-bottom: 1.5rem; padding-left: 1.5rem; line-height: 1.6; font-size: 0.9rem;">
                 <li>There are 10 locked chests.</li>
                 <li>Every **30 days**, a new key is created.</li>
@@ -243,7 +259,7 @@
     </div>
 
     <footer>
-        <p id="footer-brand-text">© 2026 Secret Chests. Made with love.</p>
+        <p id="footer-brand-text"></p>
         <span class="reset-link" onclick="uiSoftReset()">Experiencing issues? Reset mobile view</span>
     </footer>
 
