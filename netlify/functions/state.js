@@ -5,7 +5,6 @@ const {
     getClientState,
     json,
     logAccessEvent,
-    touchSession,
     upsertClientState,
     withStateDefaults
 } = require("./_lib/sheetsStore");
@@ -16,7 +15,6 @@ exports.handler = async (event) => {
         if (!session) {
             return json(401, { ok: false, error: "Please login first." });
         }
-        await touchSession(session.sessionId);
 
         if (event.httpMethod === "GET") {
             try {
@@ -44,7 +42,6 @@ exports.handler = async (event) => {
         if (event.httpMethod === "POST") {
             const parsed = event.body ? JSON.parse(event.body) : {};
             const next = await upsertClientState(session.userId, parsed.state);
-            await logAccessEvent(session.userId, "state_save", session.sessionId);
             return json(200, { ok: true, state: next });
         }
 

@@ -16,6 +16,47 @@ const SERVICE_KEY = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "").repla
 const SESSION_COOKIE = "gift_session_id";
 const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 3);
 const LOGIN_LOCK_MINUTES = Number(process.env.LOGIN_LOCK_MINUTES || 30);
+const AUTO_SYNC_ON_SAVE = String(process.env.GSHEET_AUTO_SYNC_ON_SAVE || "false").toLowerCase() === "true";
+const AUTO_SYNC_MIN_INTERVAL_MS = Number(process.env.GSHEET_AUTO_SYNC_MIN_INTERVAL_MS || 300000);
+
+const headerEnsured = {
+    store: false,
+    access: false,
+    login: false,
+    session: false,
+    authLock: false
+};
+
+const readCache = {
+    loginRows: { data: null, expiresAt: 0 },
+    storeRows: { data: null, expiresAt: 0 },
+    sessionRows: { data: null, expiresAt: 0 },
+    authLockRows: { data: null, expiresAt: 0 }
+};
+
+const READ_CACHE_TTL_MS = 20000;
+let lastAutoSyncMs = 0;
+
+function getCached(cacheKey) {
+    const bucket = readCache[cacheKey];
+    if (!bucket || !bucket.data) return null;
+    if (Date.now() >= bucket.expiresAt) return null;
+    return bucket.data;
+}
+
+function setCached(cacheKey, data) {
+    const bucket = readCache[cacheKey];
+    if (!bucket) return;
+    bucket.data = data;
+    bucket.expiresAt = Date.now() + READ_CACHE_TTL_MS;
+}
+
+function invalidateCache(cacheKey) {
+    const bucket = readCache[cacheKey];
+    if (!bucket) return;
+    bucket.data = null;
+    bucket.expiresAt = 0;
+}
 
 function defaultState() {
     return {
@@ -532,6 +573,7 @@ async function clearBanding(sheets, sheetId) {
 }
 
 async function ensureStoreHeader(sheets) {
+    if (headerEnsured.store) return;
     await ensureTab(sheets, STORE_TAB);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
@@ -549,9 +591,11 @@ async function ensureStoreHeader(sheets) {
             }
         });
     }
+    headerEnsured.store = true;
 }
 
 async function ensureAccessHeader(sheets) {
+    if (headerEnsured.access) return;
     await ensureTab(sheets, ACCESS_TAB);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
@@ -569,9 +613,11 @@ async function ensureAccessHeader(sheets) {
             }
         });
     }
+    headerEnsured.access = true;
 }
 
 async function ensureLoginHeader(sheets) {
+    if (headerEnsured.login) return;
     await ensureTab(sheets, LOGIN_TAB);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
@@ -588,9 +634,11 @@ async function ensureLoginHeader(sheets) {
             requestBody: { values: [expected] }
         });
     }
+    headerEnsured.login = true;
 }
 
 async function ensureSessionHeader(sheets) {
+    if (headerEnsured.session) return;
     await ensureTab(sheets, SESSION_TAB);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
@@ -620,9 +668,11 @@ async function ensureSessionHeader(sheets) {
             requestBody: { values: [expected] }
         });
     }
+    headerEnsured.session = true;
 }
 
 async function ensureAuthLockHeader(sheets) {
+    if (headerEnsured.authLock) return;
     await ensureTab(sheets, AUTH_LOCK_TAB);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
@@ -647,6 +697,7 @@ async function ensureAuthLockHeader(sheets) {
             requestBody: { values: [expected] }
         });
     }
+    headerEnsured.authLock = true;
 }
 
 async function logAccessEvent(userId, eventType = "visit", sessionId = "") {
@@ -675,13 +726,15 @@ async function logAccessEvent(userId, eventType = "visit", sessionId = "") {
 }
 
 async function getLoginRows(sheets) {
+    const cached = getCached("loginRows");
+    if (cached) return cached;
     await ensureLoginHeader(sheets);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
         range: `${LOGIN_TAB}!A2:G`
     });
     const values = res.data.values || [];
-    return values.map((r, idx) => ({
+    const rows = values.map((r, idx) => ({
         rowNumber: idx + 2,
         userId: String(r[0] || "").trim(),
         name: String(r[1] || "").trim(),
@@ -691,6 +744,8 @@ async function getLoginRows(sheets) {
         contentJson: String(r[5] || "").trim(),
         notes: String(r[6] || "").trim()
     })).filter((r) => !!r.userId);
+    setCached("loginRows", rows);
+    return rows;
 }
 
 function getLockKey(name, phone) {
@@ -702,13 +757,15 @@ function getLockKey(name, phone) {
 }
 
 async function getAuthLockRows(sheets) {
+    const cached = getCached("authLockRows");
+    if (cached) return cached;
     await ensureAuthLockHeader(sheets);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
         range: `${AUTH_LOCK_TAB}!A2:G`
     });
     const values = res.data.values || [];
-    return values.map((r, idx) => ({
+    const rows = values.map((r, idx) => ({
         rowNumber: idx + 2,
         lockKey: String(r[0] || "").trim(),
         failCount: Number(r[1] || 0),
@@ -718,6 +775,8 @@ async function getAuthLockRows(sheets) {
         lastName: String(r[5] || ""),
         lastPhone: String(r[6] || "")
     })).filter((r) => !!r.lockKey);
+    setCached("authLockRows", rows);
+    return rows;
 }
 
 async function getAuthLockForIdentity(name, phone) {
@@ -758,6 +817,7 @@ async function upsertAuthLock(lockKey, data) {
             requestBody: { values: payload }
         });
     }
+    invalidateCache("authLockRows");
 }
 
 async function clearAuthLock(name, phone) {
@@ -918,6 +978,7 @@ async function upsertLoginUser(input) {
             requestBody: { values }
         });
     }
+    invalidateCache("loginRows");
     return {
         userId: payload.userId,
         name: payload.name,
@@ -952,6 +1013,7 @@ async function deleteLoginUser(userId) {
             }]
         }
     });
+    invalidateCache("loginRows");
     return { ok: true, deleted: true };
 }
 
@@ -998,13 +1060,15 @@ async function verifyLoginIdentity(name, phone) {
 }
 
 async function getSessionRows(sheets) {
+    const cached = getCached("sessionRows");
+    if (cached) return cached;
     await ensureSessionHeader(sheets);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
         range: `${SESSION_TAB}!A2:L`
     });
     const values = res.data.values || [];
-    return values.map((r, idx) => ({
+    const rows = values.map((r, idx) => ({
         rowNumber: idx + 2,
         sessionId: r[0] || "",
         userId: r[1] || "",
@@ -1019,6 +1083,8 @@ async function getSessionRows(sheets) {
         lastSeenIst: r[10] || "",
         status: r[11] || ""
     }));
+    setCached("sessionRows", rows);
+    return rows;
 }
 
 async function createUserSession(user) {
@@ -1047,6 +1113,7 @@ async function createUserSession(user) {
         insertDataOption: "INSERT_ROWS",
         requestBody: { values: row }
     });
+    invalidateCache("sessionRows");
     return { sessionId, createdAtMs: now };
 }
 
@@ -1068,6 +1135,7 @@ async function touchSession(sessionId) {
         valueInputOption: "RAW",
         requestBody: { values: [[formatIst(now)]] }
     });
+    invalidateCache("sessionRows");
     return { ...session, lastSeenIst: formatIst(now) };
 }
 
@@ -1092,6 +1160,7 @@ async function closeSession(sessionId, screenTimeSec = 0) {
             ]]
         }
     });
+    invalidateCache("sessionRows");
     return { ...session, logoutMs: now, durationSec };
 }
 
@@ -1126,18 +1195,22 @@ function clearSessionCookie() {
 }
 
 async function getStoreRows(sheets) {
+    const cached = getCached("storeRows");
+    if (cached) return cached;
     await ensureStoreHeader(sheets);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
         range: `${STORE_TAB}!A2:C`
     });
     const values = res.data.values || [];
-    return values.map((r, idx) => ({
+    const rows = values.map((r, idx) => ({
         rowNumber: idx + 2,
         clientId: r[0] || "",
         updatedAt: Number(r[1] || 0),
         stateJson: r[2] || "{}"
     }));
+    setCached("storeRows", rows);
+    return rows;
 }
 
 async function getClientState(clientId) {
@@ -1193,8 +1266,16 @@ async function upsertClientState(clientId, nextState) {
             requestBody: { values: payload }
         });
     }
-
-    await syncAdminTabFromStore();
+    invalidateCache("storeRows");
+    if (AUTO_SYNC_ON_SAVE) {
+        const now = Date.now();
+        if ((now - lastAutoSyncMs) >= AUTO_SYNC_MIN_INTERVAL_MS) {
+            lastAutoSyncMs = now;
+            syncAdminTabFromStore().catch((err) => {
+                console.error("Auto sync failed:", err && err.message ? err.message : err);
+            });
+        }
+    }
     return normalized;
 }
 

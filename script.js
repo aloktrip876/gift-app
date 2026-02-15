@@ -24,7 +24,11 @@
                 type: "wallpaper", 
                 icon: "📸", 
                 label: "A Special Image", 
-                content: "images/special_wallpaper.png"
+                content: {
+                    preview: "images/special_wallpaper.png",
+                    full: "images/special_wallpaper.png",
+                    download: "images/special_wallpaper.png"
+                }
             },
 
             // CHEST 3: SPOTIFY PLAYLIST (Type: playlist)
@@ -33,9 +37,8 @@
                 type: "playlist", 
                 icon: "🎧", 
                 label: "Songs Just for You", 
-                content: `
-                    <iframe data-testid="embed-iframe" style="border-radius:12px" src="https://open.spotify.com/embed/playlist/4lSF5XemjVqs3M3Sk87WBX?utm_source=generator" width="100%" height="352" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-                `
+                // Lightweight placeholder; iframe will be injected on user action to avoid blocking page load
+                content: `<a href="#" class="playlist-load" data-src="https://open.spotify.com/embed/playlist/4lSF5XemjVqs3M3Sk87WBX?utm_source=generator">Open playlist (click to load)</a>`
             },
 
             // CHEST 4: POETRY DESCRIBING HER (Type: text)
@@ -86,12 +89,14 @@
                 type: "gallery", 
                 icon: "🖼️", 
                 label: "Memory Collage", 
-                content: [
-                    "images/gallery (1).jpg",
-                    "images/gallery (2).jpg",
-                    "images/gallery (3).jpg",
-                    "images/gallery (4).jpg"
-                ] 
+                content: {
+                    images: [
+                        { thumb: "images/gallery (1).jpg", full: "images/gallery (1).jpg" },
+                        { thumb: "images/gallery (2).jpg", full: "images/gallery (2).jpg" },
+                        { thumb: "images/gallery (3).jpg", full: "images/gallery (3).jpg" },
+                        { thumb: "images/gallery (4).jpg", full: "images/gallery (4).jpg" }
+                    ]
+                } 
             },
 
             // CHEST 7: JOKE + BONUS KEY (Type: bonus_key)
@@ -174,14 +179,16 @@
                 type: "gallery", 
                 icon: "🤪", 
                 label: "A Collection of Hilarious Memes", 
-                content: [
-                    "images/meme (1).jpg",
-                    "images/meme (2).jpg",
-                    "images/meme (3).jpg",
-                    "images/meme (4).jpg",
-                    "images/meme (5).jpg",
-                    "images/meme (6).jpg"
-                ]
+                content: {
+                    images: [
+                        { thumb: "images/meme (1).jpg", full: "images/meme (1).jpg" },
+                        { thumb: "images/meme (2).jpg", full: "images/meme (2).jpg" },
+                        { thumb: "images/meme (3).jpg", full: "images/meme (3).jpg" },
+                        { thumb: "images/meme (4).jpg", full: "images/meme (4).jpg" },
+                        { thumb: "images/meme (5).jpg", full: "images/meme (5).jpg" },
+                        { thumb: "images/meme (6).jpg", full: "images/meme (6).jpg" }
+                    ]
+                }
             },
             
             // CHEST 10: PUZZLE GAME (Type: puzzle - FINAL)
@@ -208,6 +215,7 @@
         const API_ADMIN_USERS_URL = '/api/admin/users';
         const API_ADMIN_ANALYTICS_URL = '/api/admin/analytics';
         const API_ADMIN_ANALYTICS_CSV_URL = '/api/admin/analytics/sessions.csv';
+        const HEARTBEAT_INTERVAL_MS = 180000;
 
         function createDefaultState() {
             return {
@@ -219,6 +227,7 @@
                 puzzleState: null,
                 feedbackSent: null,
                 contentAccessTimes: {},
+                localUpdatedAt: 0,
                 ui: {
                     theme: 'dark',
                     colorScheme: 'amethyst',
@@ -254,6 +263,9 @@
             page: 1,
             pageSize: 12
         };
+        let saveDebounceTimer = null;
+        let pendingStateSnapshot = null;
+        const SAVE_DEBOUNCE_MS = 350;
 
         // When true, don't reveal the final feedback section yet so the last chest's gift
         // can be displayed first. This is toggled when the 10th chest is just unlocked.
@@ -331,12 +343,15 @@
             const title = profile.pageTitle || (user && user.pageTitle) || document.title;
             const subtitle = profile.headerSubtitle || "A digital journey of surprises, unlocked one key at a time.";
             const headerTitle = profile.headerTitle || title;
+            const tabIcon = profile.tabIcon || 'images/icon_img.jpg';
 
             document.title = title;
             const h1 = document.querySelector('header h1');
             const p = document.querySelector('header p');
+            const favicon = document.getElementById('site-favicon');
             if (h1) h1.textContent = headerTitle;
             if (p) p.textContent = subtitle;
+            if (favicon) favicon.setAttribute('href', tabIcon);
 
             const userInfo = document.getElementById('user-session-info');
             const userName = document.getElementById('session-user-name');
@@ -387,26 +402,31 @@
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok || !data.ok) {
+                    const rawError = String(data.error || '');
+                    const quotaLikeError = /quota exceeded|read requests per minute|too many requests|rate limit/i.test(rawError) || res.status === 429;
+                    if (quotaLikeError) {
+                        setLoginStatus('Trying to Log in too frequently...Try again after 2 minutes.', true);
+                        return;
+                    }
+
                     if (typeof data.attemptsLeft === 'number') {
                         loginAttempts = Math.max(0, 3 - data.attemptsLeft);
                     } else {
-                        loginAttempts += 1;
+                        loginAttempts = Math.min(3, loginAttempts + 1);
                     }
                     localStorage.setItem('gift_login_attempts', String(loginAttempts));
-                    if (res.status === 429 || data.retryAfterSec) {
-                        setLoginStatus(`Locked. Retry after ${data.retryAfterSec || 0}s. ${data.lockUntilIst ? `Unlocks at ${data.lockUntilIst}` : ''}`, true);
-                    } else {
-                        setLoginStatus(data.error || 'Verification failed.', true);
-                    }
+                    setLoginStatus(data.error || 'Verification failed.', true);
                     return;
                 }
+
                 loginAttempts = 0;
                 localStorage.setItem('gift_login_attempts', '0');
                 applyUserPersonalization(data.user || null);
-                document.getElementById('login-modal').classList.remove('active');
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal) loginModal.classList.remove('active');
                 await init();
             } catch (err) {
-                loginAttempts += 1;
+                loginAttempts = Math.min(3, loginAttempts + 1);
                 localStorage.setItem('gift_login_attempts', String(loginAttempts));
                 setLoginStatus('Login failed. Check network and retry.', true);
             }
@@ -467,7 +487,9 @@
                 document.getElementById('tutorial-modal').classList.add('active');
             }
 
-            requestNotificationPermission();
+            // Defer service worker registration and notification prompts until the page has fully loaded
+            // to avoid delaying initial render.
+            // Registration will occur on `window.load` (see bottom of file).
             checkKeyGeneration();
             renderChests();
             updateSidebar();
@@ -498,7 +520,7 @@
             });
 
             if (heartbeatInterval) clearInterval(heartbeatInterval);
-            heartbeatInterval = setInterval(heartbeat, 60000);
+            heartbeatInterval = setInterval(heartbeat, HEARTBEAT_INTERVAL_MS);
         }
         
         /* --- FINAL PAGE RESTART LOGIC --- */
@@ -510,13 +532,14 @@
         }
         
         /* --- FEEDBACK LOGIC --- */
-        function sendFeedback(type) {
-
-            state.feedbackSent = {
-                type,
-                at: Date.now()
-            };
-            saveState();
+        function sendFeedback(type, persist = true) {
+            if (persist) {
+                state.feedbackSent = {
+                    type,
+                    at: Date.now()
+                };
+                saveState();
+            }
 
             const messageEl = document.getElementById('feedback-message');
             const likeBtn = document.getElementById('feedback-like');
@@ -784,7 +807,8 @@
             if ('Notification' in window) {
                 // Register Service Worker
                 if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.register('sw.js', { scope: './' })
+                    // Register service worker from site root to ensure proper scope
+                    navigator.serviceWorker.register('/sw.js', { scope: '/' })
                         .then(registration => {
                             logAdmin('Service Worker registered successfully.');
                         })
@@ -972,30 +996,93 @@
         }
 
         /* --- UI RENDERER --- */
+        function escapeHtmlAttr(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function normalizeGalleryContent(content) {
+            const out = { thumbUrls: [], fullUrls: [] };
+            if (!content) return out;
+
+            // New format: { images: [{ thumb, full }, ...] } or { images: ["...", "..."] }
+            if (typeof content === 'object' && !Array.isArray(content) && Array.isArray(content.images)) {
+                return normalizeGalleryContent(content.images);
+            }
+
+            if (!Array.isArray(content)) return out;
+
+            content.forEach((item) => {
+                if (!item) return;
+                if (typeof item === 'string') {
+                    out.thumbUrls.push(item);
+                    out.fullUrls.push(item);
+                    return;
+                }
+                if (typeof item === 'object') {
+                    const full = item.full || item.url || item.src || item.original || '';
+                    const thumb = item.thumb || item.thumbnail || full || '';
+                    if (full || thumb) {
+                        out.thumbUrls.push(thumb || full);
+                        out.fullUrls.push(full || thumb);
+                    }
+                }
+            });
+
+            return out;
+        }
+
+        function normalizeWallpaperContent(content) {
+            if (typeof content === 'string') {
+                return { preview: content, full: content, download: content };
+            }
+            if (content && typeof content === 'object') {
+                const full = content.full || content.url || content.src || '';
+                const preview = content.preview || content.thumb || content.thumbnail || full;
+                const download = content.download || full || preview;
+                return { preview, full: full || preview, download };
+            }
+            return { preview: '', full: '', download: '' };
+        }
+
         function getGiftHTML(type, content, chestId) { 
             let html = '';
             switch(type) {
                 case 'letter': case 'text': case 'coupon': html = `<p class="gift-text">${content}</p>`; break;
-                case 'gallery':
+                case 'gallery': {
+                    const media = normalizeGalleryContent(content);
                     html = '<div class="gift-gallery">';
-                    content.forEach((url, idx) => {
+                    media.thumbUrls.forEach((url, idx) => {
                         const cls = (chestId === 6) ? 'chest6-img' : '';
                         const usesLightbox = chestId === 6 || chestId === 9;
+                        const thumbAttr = escapeHtmlAttr(url);
+                        const lightboxData = JSON.stringify(media.fullUrls).replace(/"/g, '&quot;');
                         if (chestId === 6) {
-                            html += `<span class="chest6-img-wrap"><img src="${url}" class="${cls}" onclick="openLightbox(${idx}, ${JSON.stringify(content).replace(/"/g, '&quot;')})"></span>`;
+                            html += `<span class="chest6-img-wrap"><img src="${thumbAttr}" loading="lazy" decoding="async" class="${cls}" onclick="openLightbox(${idx}, ${lightboxData})"></span>`;
                         } else if (usesLightbox) {
-                            html += `<img src="${url}" class="${cls}" onclick="openLightbox(${idx}, ${JSON.stringify(content).replace(/"/g, '&quot;')})">`;
+                            html += `<img src="${thumbAttr}" loading="lazy" decoding="async" class="${cls}" onclick="openLightbox(${idx}, ${lightboxData})">`;
                         } else {
-                            html += `<img src="${url}" class="${cls}" onclick="window.open('${url}','_blank')">`;
+                            const openUrl = JSON.stringify(media.fullUrls[idx] || url).replace(/"/g, '&quot;');
+                            html += `<img src="${thumbAttr}" loading="lazy" decoding="async" class="${cls}" onclick="window.open(${openUrl},'_blank')">`;
                         }
                     });
                     html += '</div>';
                     break;
+                }
                 case 'playlist': html = content; break;
                 case 'video': html = `<div class="media-wrapper"><iframe src="${content}" allowfullscreen></iframe></div>`; break;
-                case 'wallpaper':
-                    html = `<div class="gift-wallpaper"><img src="${content}" alt="Wallpaper" width="100%" style="border-radius:5px; border:2px solid black; cursor:pointer;" onclick="openLightbox(0, ${JSON.stringify([content]).replace(/"/g, '&quot;')})"><a href="${content}" target="_blank" class="btn btn-download" style="width:100%">Download High-Res</a></div>`;
+                case 'wallpaper': {
+                    const wp = normalizeWallpaperContent(content);
+                    const preview = escapeHtmlAttr(wp.preview);
+                    const full = escapeHtmlAttr(wp.full);
+                    const dl = escapeHtmlAttr(wp.download);
+                    html = `<div class="gift-wallpaper"><img src="${preview}" loading="lazy" decoding="async" alt="Wallpaper" width="100%" style="border-radius:5px; border:2px solid black; cursor:pointer;" onclick="openLightbox(0, ${JSON.stringify([wp.full]).replace(/"/g, '&quot;')})"><a href="${dl}" target="_blank" class="btn btn-download" style="width:100%">Download High-Res</a></div>`;
                     break;
+                }
                 case 'link': html = `<a href="${content}" target="_blank" class="gift-link-card">CLICK TO OPEN GIFT ↗</a>`; break;
                 
                 case 'bonus_key': {
@@ -1089,7 +1176,7 @@
 
                 // Re-apply feedback state if already sent
                 if (state.feedbackSent) {
-                    sendFeedback(typeof state.feedbackSent === 'string' ? state.feedbackSent : state.feedbackSent.type);
+                    sendFeedback(typeof state.feedbackSent === 'string' ? state.feedbackSent : state.feedbackSent.type, false);
                 }
 
                 logAdmin("All chests unlocked. Displaying chests grid and final page (deferred=" + deferFinalReveal + ").");
@@ -1305,10 +1392,7 @@
             }
         }
 
-        function saveState() {
-            if (!currentUser) return Promise.resolve();
-            const snapshot = JSON.parse(JSON.stringify(state));
-            writeStateCache(snapshot);
+        function pushStateToServer(snapshot) {
             saveQueue = saveQueue
                 .catch(() => {})
                 .then(() =>
@@ -1319,6 +1403,33 @@
                         body: JSON.stringify({ state: snapshot })
                     }).catch(err => console.error('State save failed:', err))
                 );
+            return saveQueue;
+        }
+
+        function saveState(immediate = false) {
+            if (!currentUser) return Promise.resolve();
+            state.localUpdatedAt = Date.now();
+            const snapshot = JSON.parse(JSON.stringify(state));
+            writeStateCache(snapshot);
+            pendingStateSnapshot = snapshot;
+
+            if (immediate) {
+                if (saveDebounceTimer) {
+                    clearTimeout(saveDebounceTimer);
+                    saveDebounceTimer = null;
+                }
+                const next = pendingStateSnapshot;
+                pendingStateSnapshot = null;
+                return pushStateToServer(next);
+            }
+
+            if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+            saveDebounceTimer = setTimeout(() => {
+                saveDebounceTimer = null;
+                const next = pendingStateSnapshot;
+                pendingStateSnapshot = null;
+                if (next) pushStateToServer(next);
+            }, SAVE_DEBOUNCE_MS);
             return saveQueue;
         }
 
@@ -1334,8 +1445,23 @@
                 }
                 if (!res.ok) throw new Error(`State load failed: ${res.status}`);
                 const data = await res.json();
-                state = hydrateState(data.state);
-                writeStateCache(state);
+                const serverState = hydrateState(data.state);
+                const cachedState = readStateCache();
+                const hydratedCache = cachedState ? hydrateState(cachedState) : null;
+                const serverTs = Number(serverState.localUpdatedAt || 0);
+                const cacheTs = Number(hydratedCache && hydratedCache.localUpdatedAt ? hydratedCache.localUpdatedAt : 0);
+
+                if (hydratedCache && cacheTs > serverTs) {
+                    // Local cache is newer than server snapshot: keep user progress and re-sync.
+                    state = hydratedCache;
+                    writeStateCache(state);
+                    setTimeout(() => {
+                        saveState(true).catch(() => {});
+                    }, 0);
+                } else {
+                    state = serverState;
+                    writeStateCache(state);
+                }
                 if (data && data.user) applyUserPersonalization(data.user);
             } catch (err) {
                 console.error(err);
@@ -1363,7 +1489,7 @@
             const cCtx = cCanvas.getContext('2d');
             cCanvas.width = window.innerWidth; cCanvas.height = window.innerHeight;
             
-            const particles = Array.from({length: 150}, () => ({
+            const particles = Array.from({length: 60}, () => ({
                 x: cCanvas.width/2, y: cCanvas.height/2,
                 vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15,
                 life: 100 + Math.random()*50,
@@ -1756,6 +1882,14 @@
         function resolveChestIdByAsset(assetPath) {
             const entry = CHEST_DATA.find((c) => {
                 if (!c) return false;
+                if (c.type === 'gallery') {
+                    const media = normalizeGalleryContent(c.content);
+                    return media.fullUrls.includes(assetPath) || media.thumbUrls.includes(assetPath);
+                }
+                if (c.type === 'wallpaper') {
+                    const wp = normalizeWallpaperContent(c.content);
+                    return wp.full === assetPath || wp.preview === assetPath || wp.download === assetPath;
+                }
                 if (Array.isArray(c.content)) return c.content.includes(assetPath);
                 return c.content === assetPath;
             });
@@ -2060,6 +2194,43 @@
             document.getElementById('customize-modal').classList.remove('active');
         }
 
+        function openNativeColorPicker(initialHex, onInput) {
+            const picker = document.createElement('input');
+            picker.type = 'color';
+            picker.value = normalizeHexColor(initialHex || '#6b2fb5', '#6b2fb5');
+            // Keep it in viewport for better mobile compatibility.
+            picker.style.position = 'fixed';
+            picker.style.top = '12px';
+            picker.style.left = '12px';
+            picker.style.width = '1px';
+            picker.style.height = '1px';
+            picker.style.opacity = '0';
+            picker.style.pointerEvents = 'none';
+            picker.style.zIndex = '2147483647';
+            document.body.appendChild(picker);
+
+            const cleanup = () => {
+                if (picker && picker.parentNode) picker.parentNode.removeChild(picker);
+            };
+
+            picker.addEventListener('input', () => {
+                if (typeof onInput === 'function') onInput(picker.value);
+            });
+            picker.addEventListener('change', cleanup, { once: true });
+            picker.addEventListener('blur', () => setTimeout(cleanup, 250), { once: true });
+
+            try {
+                if (typeof picker.showPicker === 'function') {
+                    picker.showPicker();
+                } else {
+                    picker.click();
+                }
+            } catch (err) {
+                // Fallback for browsers that block showPicker.
+                picker.click();
+            }
+        }
+
         function populateColorOptions() {
             const theme = document.documentElement.getAttribute('data-theme') || 'dark';
             const schemeContainer = document.getElementById('scheme-options');
@@ -2126,20 +2297,12 @@
             customSchemeSwatch.style.background = normalizeHexColor(state.ui.customSchemeColor || '#6b2fb5', '#6b2fb5');
             customSchemeBtn.appendChild(customSchemeSwatch);
             customSchemeBtn.onclick = () => {
-                const picker = document.createElement('input');
-                picker.type = 'color';
-                picker.value = normalizeHexColor(state.ui.customSchemeColor || '#6b2fb5', '#6b2fb5');
-                picker.style.position = 'fixed';
-                picker.style.left = '-9999px';
-                document.body.appendChild(picker);
-                picker.addEventListener('input', () => {
-                    state.ui.customSchemeColor = normalizeHexColor(picker.value, '#6b2fb5');
+                openNativeColorPicker(state.ui.customSchemeColor || '#6b2fb5', (pickedHex) => {
+                    state.ui.customSchemeColor = normalizeHexColor(pickedHex, '#6b2fb5');
                     customSchemeSwatch.style.background = state.ui.customSchemeColor;
                     state.ui.colorScheme = 'custom';
                     applyColorScheme('custom', state.ui.highlight || 'amethyst');
                 });
-                picker.addEventListener('change', () => picker.remove());
-                picker.click();
             };
             schemeContainer.appendChild(customSchemeBtn);
 
@@ -2151,20 +2314,12 @@
             customHighlightSwatch.style.background = normalizeHexColor(state.ui.customHighlightColor || '#6b2fb5', '#6b2fb5');
             customHighlightBtn.appendChild(customHighlightSwatch);
             customHighlightBtn.onclick = () => {
-                const picker = document.createElement('input');
-                picker.type = 'color';
-                picker.value = normalizeHexColor(state.ui.customHighlightColor || '#6b2fb5', '#6b2fb5');
-                picker.style.position = 'fixed';
-                picker.style.left = '-9999px';
-                document.body.appendChild(picker);
-                picker.addEventListener('input', () => {
-                    state.ui.customHighlightColor = normalizeHexColor(picker.value, '#6b2fb5');
+                openNativeColorPicker(state.ui.customHighlightColor || '#6b2fb5', (pickedHex) => {
+                    state.ui.customHighlightColor = normalizeHexColor(pickedHex, '#6b2fb5');
                     customHighlightSwatch.style.background = state.ui.customHighlightColor;
                     state.ui.highlight = 'custom';
                     applyColorScheme(state.ui.colorScheme || 'amethyst', 'custom');
                 });
-                picker.addEventListener('change', () => picker.remove());
-                picker.click();
             };
             highlightContainer.appendChild(customHighlightBtn);
         }
@@ -2227,6 +2382,24 @@
                 });
             }
         }
+
+        // Defer service worker registration and notification prompt until full page load
+        window.addEventListener('load', () => {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                    .then(reg => logAdmin('Service Worker registered on load.'))
+                    .catch(err => logAdmin('Service Worker registration failed: ' + (err && err.message ? err.message : err)));
+            }
+
+            // Non-blocking notification permission request after a short delay
+            setTimeout(() => {
+                if ('Notification' in window && Notification.permission === 'default') {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') logAdmin('Notifications enabled.');
+                    }).catch(err => logAdmin('Notification permission request failed: ' + err));
+                }
+            }, 2000);
+        });
 
         init();
 
