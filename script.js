@@ -9,201 +9,17 @@
         const RESTART_KEYWORD = "RESTART";
 
         const DEFAULT_CHEST_DATA = [
-            // CHEST 1: WARM MESSAGE (Type: letter)
-            { 
-                id: 1, 
-                type: "text", 
-                icon: "💖", 
-                label: "Just for You", 
-                content: "Hey, Shreya\n\"You have this incredible magic of making everything okay just by smiling. I wanted to create something that might give a little bit of that joy back to you. You are amazing, inside and out.\nThank you for being someone whose presence feels warm, gentle, and so reassuring.\nI hope this year brings you the same happiness you quietly bring to everyone around you.\nYou're special — more than you know.\n\nWith love,\nAlok" 
-            },
-
-            // CHEST 2: SPECIAL IMAGE (Type: wallpaper)
-            { 
-                id: 2, 
-                type: "wallpaper", 
-                icon: "📸", 
-                label: "A Special Image", 
-                content: {
-                    preview: "images/special_wallpaper.png",
-                    full: "images/special_wallpaper.png",
-                    download: "images/special_wallpaper.png"
-                }
-            },
-
-            // CHEST 3: SPOTIFY PLAYLIST (Type: playlist)
-            { 
-                id: 3, 
-                type: "playlist", 
-                icon: "🎧", 
-                label: "Songs Just for You", 
-                // Lightweight placeholder; iframe will be injected on user action to avoid blocking page load
-                content: `<a href="#" class="playlist-load" data-src="https://open.spotify.com/embed/playlist/4lSF5XemjVqs3M3Sk87WBX?utm_source=generator">Open playlist (click to load)</a>`
-            },
-
-            // CHEST 4: POETRY DESCRIBING HER (Type: text)
-            { 
-                id: 4, 
-                type: "text", 
-                icon: "📜", 
-                label: "A Poem for My Muse", 
-                content: `
-                    Shreya, a friendship as rare and as true,
-                    Is something I treasure, thanks entirely to you.
-                    You're kindness embodied, a generous soul,
-                    A sweet, helpful spirit that makes others whole.
-
-                    You move through the world with an affable grace,
-                    A bright, open smile that lights up the space.
-                    So intelligent, hardworking, and sharp in your mind,
-                    The very best version of thoughtful and kind.
-
-                    But sometimes, I notice that mind takes a flight,
-                    Exploring the shadows instead of the light.
-                    That beautiful brain, which knows so much,
-                    Can worry too much, with a hesitant touch.
-
-                    Remember, my friend, when the thoughts start to spin,
-                    You're stronger than any doubt held deep within.
-                    The world sees your goodness, your warmth, and your worth,
-                    The most wonderful friend on this whole spinning earth.
-
-                    So keep shining brightly, keep being so clever,
-                    And know that my friendship is solid forever.
-                    No need to overthink what a treasure you are,
-                    You’re simply perfect, my shining bright star. ❤️` 
-            },
-
-            // CHEST 5: RIDDLE QUIZ (Type: link)
-            { 
-                id: 5, 
-                type: "link", 
-                icon: "❓", 
-                label: "Riddle Challenge", 
-                content: "https://forms.gle/NBTgCCP35bWiU7wAA" 
-            },
-
-            // CHEST 6: COLLAGE OF MEMORIES (Type: gallery)
-            { 
-                id: 6, 
-                type: "gallery", 
-                icon: "🖼️", 
-                label: "Memory Collage", 
-                content: {
-                    images: [
-                        { thumb: "images/gallery (1).jpg", full: "images/gallery (1).jpg" },
-                        { thumb: "images/gallery (2).jpg", full: "images/gallery (2).jpg" },
-                        { thumb: "images/gallery (3).jpg", full: "images/gallery (3).jpg" },
-                        { thumb: "images/gallery (4).jpg", full: "images/gallery (4).jpg" }
-                    ]
-                } 
-            },
-
-            // CHEST 7: JOKE + BONUS KEY (Type: bonus_key)
-            { 
-                id: 7, 
-                type: "bonus_key", 
-                icon: "😂", 
-                label: "A Chuckle & A Skip", 
-                content: {
-                    joke: `एक लड़के ने एक लड़की को कमाल का फूल दिया?
-                            लड़की ने उसको एक थप्पड़ मार दिया,
-                            लड़का बोला मैं तो बीजेपी का प्रचार कर रहा हूं,
-                            लड़की बोली में भी कांग्रेस का प्रचार कर रही हूं।
-                            -----------------------------------
-                            लड़का: चलते चलते यूंही रुक जाता हूं मैं
-                            बेठे-बेठे यूंही खो जाता हूं मैं
-                            क्या ये ही प्यार है. . .???
-                            लड़की: नहीं ये कमज़ोरी है
-                            सुभा शाम ग्लूकोज पिया करो। . .
-                            -----------------------------------
-                            सरदार की शायरी-
-                            “एक लड़की को देखा तो ऐसा लगा,
-                            दूसरी लड़की को देखा तो वैसा लगा,
-                            पर दोनों ने थप्पड़ मारा तो एक जैसा लगा"
-                            -----------------------------------
-                            पति: सम्मोहन क्या है?
-                            पत्नी: किसी को अपने वश में
-                            कर के उससे मन चाहा काम
-                            करवाना.
-                            पति: अरे नहीं इसे तो शादी
-                            कहते हैं|
-                            -----------------------------------
-                            पति: तुमसे शादी करके मुझे एक बहुत बड़ा फ़ायदा हुआ।
-                            पत्नी: कौन सा फ़ायदा?
-                            पति: मुझे मेरे गुनाहों की सजा-जीते-जी ही मिल गई|
-                            -----------------------------------
-                            लड़की: आज मेरे पापा ने मुझे
-                            तुम्हारे साथ बाइक पर जाते हुए देखा..
-                            BF: फ़िर ?
-                            लड़की: फिर क्या,
-                            मुझसे बस के पैसे वापस ले लिए..!!
-                            -----------------------------------
-                            पति: जज साहब मुझे तलाक चाहिए,
-                            मेरी बीवी ने 1 साल से मुझसे बात नहीं की,
-                            जज: फिर सोच लो,
-                            ऐसी बीवी किस्मत वालों को मिलती है।
-                            -----------------------------------
-                            सर: टेंस कितने टाइप के होते हैं?
-                            लड़का: 3, वर्तमान, भूत, भविष्य
-                            सर: गुड
-                            उदाहरण दें,
-                            लड़का:कल आपकी बेटी को देखा था,
-                            आज प्यार करता हूँ,
-                            कल भागा के ले जाऊंगा|
-                            ------------------------------------
-                            टीचर: अगर कोई मोटी लड़की पलट के वापस आ जाए तो,
-                            क्या वाक्य को अंग्रेजी में क्या कहेंगे?
-                            पप्पू: "गोल माल रिटर्न्स!"
-                            ------------------------------------
-                            पता नहीं लोग पहली नजर में ही...
-                            सच्चा प्यार कैसे ढूंढ लेते हैं...
-                            यहां तो आधे घंटे तक...
-                            सेल्लो टेप का किनारा ही नहीं मिल पाता...!!!`, 
-                    targetChestId: 8 
-                }
-            },
-            
-            // CHEST 8: ANY ONE WISH FROM ME (Type: text)
-            { 
-                id: 8, 
-                type: "text", 
-                icon: "🧞", 
-                label: "Your Wish is My Command", 
-                content: "Consider this your own personal genie moment, Miss Tripathi. My heart (and this magical chest!) is ready to grant you one wish—anything reasonable that I can fulfill. Let me know(Whatsapp me) what your heart desires! 🥰" 
-            },
-
-            // CHEST 9: A COLLECTION OF RELATABLE MEMES (Type: gallery)
-            { 
-                id: 9, 
-                type: "gallery", 
-                icon: "🤪", 
-                label: "A Collection of Hilarious Memes", 
-                content: {
-                    images: [
-                        { thumb: "images/meme (1).jpg", full: "images/meme (1).jpg" },
-                        { thumb: "images/meme (2).jpg", full: "images/meme (2).jpg" },
-                        { thumb: "images/meme (3).jpg", full: "images/meme (3).jpg" },
-                        { thumb: "images/meme (4).jpg", full: "images/meme (4).jpg" },
-                        { thumb: "images/meme (5).jpg", full: "images/meme (5).jpg" },
-                        { thumb: "images/meme (6).jpg", full: "images/meme (6).jpg" }
-                    ]
-                }
-            },
-            
-            // CHEST 10: PUZZLE GAME (Type: puzzle - FINAL)
-            { 
-                id: 10, 
-                type: "puzzle", 
-                icon: "🧩", 
-                label: "The Grand Finale Puzzle", 
-                content: {
-                    imageUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxMSEhISEhIWEhUWGB0VGBgYFhgYGBcXGBcXFxcYFxUaHSggGhslGxcXITEhJSktLi4uGB8zODMtNygtLisBCgoKDg0OGxAQGy4lHiUtLy0tLS0uLS0tLi0tKy03LS0tLS0tLS0tLS0rLS0tLS0tLystLS0tLS0tLi0tLSstLf/AABEIAOIA3wMBIgACEQEDEQH/xAAcAAEAAgIDAQAAAAAAAAAAAAAABQcEBgIDCAH/xABBEAACAQIDBQUFBQUHBQEAAAABAgADEQQSIQUGMUFRBxNhcYEiMlKRoSNCYrHBFBUzgpIIQ1NyotLwNHOy0eFj/8QAGwEBAAMBAQEBAAAAAAAAAAAAAAEDBAIFBgf/xAAtEQACAgEDAwMCBQUAAAAAAAAAAQIDEQQSIQUxQRMyUSJhFHGRobFCgcHR8P/aAAwDAQACEQMRAD8AvGIiAIiIAiIgCIiAIiaR2r70nBYUJSbJWrkqrc0QC9SoPECwHiwgGHvz2kphc9LDlGdNHqtrTRrH2VA/iOOnAc+kozeLfeviie8qVKwv/eNZfSktlHykBtLHmqeiLoq9B18z1mDOuPBBn0NrVKbB6Z7tgbgpdSPIgyy9w+2fEUHWljycRQOneWHe0+AuSLZ148fa8eUqWfZySe3sPXV1V0YMrAMrA3BB1BB5idkqn+z1t1q2Cq4Zzc4Zxlv/AIdTMwF/Bg/paWtAEREAREQBERAEREAREQBERAETqxGIVBdjYcPEnoANSfATF/eJPChVPoi/RmBgjJnxImptSqDb9me3UkH6Lec0xtRjoqr4MHB+dpOBlEnExs9X4U/rP+2M9T4U/qP+2QMnbWq2sOJOgH/OU4BLXLMT11sB6TqAqFwzKtgCNGubkg31A6SJ3gxBZu7HAanxJnUVlnMpYWTPba1PMFUliSBpw+ZlDf2gdoMdod3c2ShTUC+ntM7sfC/sj+US8dj7MtZ2/wCH/wBf886N/tFbPZNoUq1jkq0QL8s9NmDD+kp84lhdhDLWWVTEROTsRPtpMbvbGqV6iBELlmyoo41H4hR4aEk8AAZOAXH/AGcsEyrjahFlJpJf8Sh2YegdfnLnkDuRu6MBhKeHuGfV6jW96oxux8h7ovyUSekASI3j3joYJA9ZiWbRKa6u56KOQ8TYDmZm7Ux6YejVr1DZKSNUY+Cgk/lPKW+e91bF1qlR2sz8QD7ifdpL0AHHqbmSgWJvF2zVlYrS7ul4KveuPNyQl/C3rIvAduOLQ+2tOsvRkyHyDIbD+k8ZUkQ2iD1vuPv7hdpqe6Pd1VF3pMRmA6qeDr4j1Am1zxXsPa1XCV6WIotlemwYePVT1BGhHQz2LsHaa4rD0MQnu1UVwOmYXt6HSQSZ8REAREQBERAIXG0WqYnKWyKEBBHvG5IYKeXAXI8J3jYdD4CT1LNf53nPauze9yspyut7HWxvyJGo4cfzkauIxNH31ZgOds4/qTUeqzrucPhkth8K1M6OWXoxuR5Nx9DMiqCRobeMiqG3ARcpcdVIYf8AyZC7Xpnr8o2sbkdpwAPvO7fzWHyE4nAlf4bsp6E5lPmD+k+/vOn1PynCptMclJ89JGGTuR3UMTcHMMrLow5eY6gyDcZ3zHmZ9fGvWY92hqW0JHsp5ZjxM+NUemR3lIqSbLYhgzfdW/Ik6SyKwVyeSb2XUDU1I8R6hiD+Ug+0Lc+ntTCmgxyVFOek9vdcAjXqpBsR68pP4CgUpohNyBqfHifrMiVFqPGe3d28Tg6ppYmk1NgbAn3W8UfgwPhI6rhXUXZSB1nontl7QaeEQ4OiqVcQwuxZQy0ARo1mBBcjgOXE9DTvZ9uo+0sTlYkUU9qq3gT7o8TrDeDpLLwY26G5+Kx7/YUsyD3nclaY82HHyEtjZnZhjKDd9R2kKFXIUHd0vZVTYlRc8Lga+EsXZ2Cp0Ka0qSCmiCyqPD9ZlhpQ7X4L1UvJQ+1O0Dbey8Q2GxFdaxWxGemrKynW6sArWN7a8LTb91u3GlUsuOoNh7mwqpdqX8wPtL6XkvvPuUmPx+HrVhejRpnMP8Rs11U+A1Jm0Vtj4d6XcNQpmna2XKLW4adJ16iOPTZrHbRttP3MalFxUSu9NFdCCpUkuTcHhZCJ5lZr6mb12k7HrbNdsElRjg6rDEU0OoDC68TwYXI8QReaJLU8lbWBERBAnqbsPJ/c+HB5NVHoKrzzDgaBd1UddfIcZ6t7KNnmhsvDK3Fw1W1rWFV2dR8mEA26InUrMddB0FtfXWAdsTgj30OhnOAIiIAiIgGJitnU6mpWzfEvst/UPyMjMVs501A75fCyuB4j3W9LHwk9ElSaOXFM1rCuj3yMCRxHBh/mU6j1E+YqlmqUqBNg9yx55V+6D4mTuLwFOrbvEDEcDb2h5MNR6TDxOw0azKWVl0UlmYa8QQx4TvecbMFZ9p/aU+CrrgcFlplVHePYHLcaIg4A2sb+MxN09+ajVaQxVdqlJnW7OBemQwKt7Kj2bgA9L35SD7ZdyatKqcWAGWqeK3sGAAytfgSBceo6Sv8AYm0shytqDpY8xzBkI7fKPZAkDvxvCMBg6uIsC/uU1+Ko2ijy5nwBmrdlO93fKMFWa7ot6LHjUpjipPNk08wR0Mge33aWtKiCfs6ZrEfjqMaVM+dhU+c5xzgnJRu1MW1Wq7u5qMxJZiblmPFiZ6N7LdhjCYCkCLVKo71+t21APkLCecsFgyatJHUgO6rqCLgsAfznraguVVXkAB8hKLnxg0Ux5yfcRVyqTx5AcyToBOurhHp927VCWZsrL90Ag6DytxnytiEpsatUhadFGqsTytoP1kTsnfCltBS9MFVoOwbUEGyjKQR1D/MGVpfS2WSl9aiTFbFFTlVGqNa5C8h1JP5TIw9cMoYcCLxsKtTNF6iurm5NQqQbMBfKT4C0xtmrakg8Pz1iUcJExlubK97fcEHwVGrzp1QL/hdSCPnllBT0D27YkLs9U5vVUD0DN+kprcnAUsRjsLQrC9OrUFNrGx9rQEHkb2l9ftM9qxIg5ypoWNgCSeQl4bU7BCHvhsUpTpWQ5h/Mmh+QmdsDsSKG+IxQAvwoJZiPGo97egnZWaT2cblNiawpkdDXblTpXByX4Z34W8zynpemgUBVFgBYAcABoAJh7G2PQwlIUcPTFNBrYcSebMTqzHqdZmVHCgkmwGpJkt5IQfgeWk6sEPs0vxyj8pwR2ezaqttARYnxPQeE7az2UkcoB11HHeIOdifTT9bTJmFstLg1CbsxPoASAB8pmwwhERIJEREAREQBERAMTa2zaeJo1KFZcyOLEc/Ag8iDqD1E8qdoG6tTAYl6bA6e0r2sKiHg6/kw5HwInraax2gbpJtLDNT0WsoLUnI4Nb3W/A3Aj14gSQeat3dsMjIVcpUQhkYcVYcCP1HMXl84K2LKYvEUk71qaJYXKgLmYcfxOx9Z5w2pgamFrNTdSjoxUqeKsDqD18DzFjL+3Xxve4Og6nQoB5EC1pn1E2kjTpoptmxV8FRqDK9NGFwbFRoRqCOkz1qTTlweWqDc66g3N7jlf/nCbElbTSZIzybJQwRHaBSavhK+Hp1KdN6oVb1KioCocFhqb6i4mnvs1tm7Dr06d3rVD7bJdh7VlOVhyCiaHX2lXw2PrVcTQXFMGYFKwLLYk2IHIdJhYPe3EUcQ9agRRVmuaI1pW+HIdLTYoPCMLsW55Rd/Zjs+rR2cqVSe9xDmq9+KJYKobxKqNPGbsJB7o7VXE4SjXUZQ4vl+EjRhfmLide+O1q2Hw7NhqD16zaKFFwvVm8unOVSblIujFRjwVN247fFbFJhkN1oD2v8AuNxHoLfWapuFQLY/BWFz+1UfpVVj9AZEbSp1RUbvwwqEktnBBJJuSbzfuxvYpq7Qwl72p5sS1hwCDKl/AswmqKSRkk8vLPTURPhMk5Psjg4qtnJ+yQm2ujMPvHwBBt8+kwsWzVKT1STZ7LTXkAzBVYjmx4+ElqeFUIqW0UAAeUkjudP7yp9SfEKbfO0yaVVXF1IYeE7AJg4vCkE1KejjiOTj4SP1gBG7prEey54/Cx0GnQ/nM+Y6MtVAbXDDh9CDOGGYoRTa5H3WJ4/hPiPrAXBlxESCRERAEREAREQBERAKt7Z9whi6RxmHT7emPtFA1q0xz/zoLkdRcdJXPZVvOtFjhKzWRjdDyBnpiedu2zcT9kq/t2HW1Cq3tgf3VVrnS3BGPyOnMTicFOOGd1z2SyWZXw+YcbHiD0PIiYWzdqpUZqVwKqGzJz816iVzuR2l92ooYzVRotTjboH8PGcd+MNVbFU8ThWsKqB1cG31mJ1NPDPSrsU1wWDtnd+hidXX2viGjD+YazXn7OKLG7O5HS6j6gXkJh9/MbhgoxNFa68Aw0b5iSa9qdAe9hqynzX9Z1ixdiHGLfK5LA2Vh0w9FKSAKiCwHLrMjD7TRmyBrN0PPymvbH2jUxKd53JooeBc3Y+QGlp3vs0XDZjmve8pcmWbEcd/N2qOMw7FkAqIMysAM2mpF+cw9w6mD2RRevjq9OliMQARSBz1KdFR9mgRLm5vmPmBynZvdtgYbDVHqPYlSEW+rE6CefVxhF7DU6k9Zt08m0zDqYpNF/bY7ZQSVweGJH+JXOUeYpL7R9SJp2M3txOKYftGJdluLoh7un01ReI/zEytRj3PDWd60cQwvbIOrEIPmZpX5GRo9a42oowqNcWUIw8cpBtJdGuARwOsqjcjH1K2FRcQGBQBcxDd23TK5GW9vGb1sXH92Rh6psf7tj95fhv8Q/KTKPBXGfOGT8T4DPs4LTGw1LKXHItmHrx+s68VWA0qD2DwbofE8j0MyK9XKNFZvBbfqZg1dpgfxKVVRzJTMPXKTBDMqjWsQjG5Put8Q48tL2mTIN9ENTDuGTjlvoD+A8j4HSSmz8UKtNKgFsw4dDwI9CDJwEzIiIkEiIiAIiIAiJxqVAoLMQoAuSTYADiSeQgHImVb2hdolBqdbB4ZFxWcGnUdtaK8iAR/EYHpoLceUxN+d7nxa1KOHJTD8CwuGrWOtua0/q3lpK2xNgLAWHK0QakW3UTqScl3IB8EiAgC/ieM2/cTbdGpTXBYkqr0yTRZzZSDxpseXgZq2LaQmI4yLIKSwc1WODyi9X3cQ/3NTwylWXzU34SHxtHA4Vg+NqoxU3Sktme/V8ug8pUy7VrgZRWqAdM7W/OSG6+7OK2lWNLDpnYDMzM1lUXtdmPjy1MoVD8s1z1ra4RbNbtR2eg9nvGtyC2+VzIHaXa0SCMNh7fic8PThJvYHYJwbGYrpdKK/Md4/wCiyxNidnGzcLYphUdh96req3+u4HoBOlRBMoeomzzs2A2ltWpn7utiOmSmSi34e1oijzM27YnYhjHsaxpUB+JjUf8AoSy/6p6GVQBYCw8J9ly47FLbfLK22P2N4Ol/Fq1a3DQEUlHW2T2vm03HZe6+Dw5zUcNSRviygtp+I3PLrJiIIPhF9DrMOpsmgRY0U/pA9QRwPlM2IBC1MJXpa0mNVOjECoPAEiz+tj4mcE22V0qLlPR70z/q0PoTJ2cXQHQgEeOsnJzt+CPG1RzRh9Z8O1l5KTOyrsikdQpQ/gYp9FNj8p0HZDX0rXHR0Vj81yyfpIakQ+0WObvEGS5AcDgwJtc+IvxkxsKkV7z4TY/za3+mWfRsfMLVH00NkGXUG4ubkkcNJJ0qYUADgPX6mS5LGERGLzlnKIicFgiIgCIiAJWXaPvF3rtgqTWRLd+QfePEUvLgW+XWbvvXtf8AZMLVr8WUWQdXY5UHlciU9sHZ7YislK5LO13Y8Tc3dievGVWSftR6WgpjzdPtH+T6mCqMhqLTYovFgNBNf2js/Ncp8v8A1Ly3jNPC4F0UBVCZQPp85TZMpknW1g9HT2x1kJKa4RpO0MOy3upEgcRxl54XcjE1qPfWUAi4VuJE0bGYdQxBQAg2It0ljta7oyLp1VjfpT7GhUqRY2sZ6u7K91hs/A01K2rVbVap55iPZS/RRYedzzlSbk7KWvjsLTyi2fO3D3aYLn6qB6z0ZLIS3LJh1em/DyUc5eMiIidmUREQBERAEREAREQBERAEREAREQBERAEREArrtgxfs4Wjrq7VT0IRcoHze/pIzsxdBXqs5AIp6X8SL29Ji9qu0u8xy0Ra1Cna/PPUIYg+ShPmZqOfoSPI2mWU0rMs+ho0rs0Sgnhvn9zct/8AeMYh+5pm6IfaI4EjgBIbdXAjEYujTPuk3byGpkJe02DcTaC0cbSZyADdbnlmEhS3zWS6en/D6SUYd8F04ghUPlYflPO29RH7XXtwzn85c++G8aYaizlhmsQi31ZjwNuglC4ioWcsdSdT5nWW3vhIwdJhLMp+Oxv3YzQDY2q5F8lHQ9C7gfUKfkZc8qPsQ/jYz/t0v/KrLcnVXtMvUXnUS/t/AiIlhhEREAREicftizmhQTv6/NbkJTBtrWqWITQ3C6seQ4kASGLxSUlL1HWmo4sxAA9TI4bTq1f+nonL/iVr01PiqWzt11Cg8jOWE2MMy1cQ3f1RqCRanTNrfZUr2XmM2rdTJWARa7PrtY1MW/iKdOmin+oO48w078Ps0Ib95VY/iqswHpe3zmbEAx6VJ1tepn11zKL26DLYD1BmREQBERAEREAREQBETE2rjloUatZ/dpoXPoL2gFC714vvMfjH4/bMo8qYFMf+EjDUmCuNBuW0LEsdLC7G5+pna2o4zDLln2lCUa4x+Ed5qzi1SR7Mw4G/5yQwgDpm53sR0Mg7U4yeMHyo5bViW8zeYtb3pkkWnRiBqDAlFKPBYHYpXti8Qmnt0QfG6Py9Hlyzzbuvt0YDFUcUwYot0qBdTkcWNhcXscpt4S/dgbyYXGoHw1dKo5gH2l8GQ6qfMTXU/pPmOpw23t/JKxEGWHnicKtQKCzEKoFySbAAakkngJB47eyirmjQDYyuONKhZsl+Bq1CQlMf5jfoDOqjsOriStTaJRwCGXDU7mghGoNQnWswOtyAo5LcXgHIY+rjdMKxo4fg2IK2ep4YdW5f/oRb4Qb5hM4DAU6CZKShRe55lieLMx1ZjzJ1MyYgCIiAIiIAiIgCIiAIiIAiIgCddeirqyOoZWBBBFwQdCCJ2RAKx272PUHucLWah0R/tE9CfaA9TKa2/sbE7OxFWgzZjTI65WVgGVlvyIPzBHKes5VnbfsDOlLGKPc+xqacUc+wx/yvp/OZyoR+C/8AE2rD3dilaG2lbRhlPzmw7Jw1VStQ0aoo1QLVGpOEJOqEORlNxw11mi7Rw5R56A7G8dSx2zWwWIs4pNYAmxNNvaSxBvdWzC44WE4lSjXX1OxNbuTQ8Vh5gVV0ls7T7MGJJw+KsPhq08xHlUVh9R6yCxvZXjAtRkrUHIF1WzgubXtfkfnKPSkj149U08o8sr4rdSOGnHp0MuXYGx9n7YwlHFvRUV7ZHqUi1KotVdG9tCCddRe+jeM857Q2lVJKMMmtiOHA2IPjLS7E95Rh64w7G1HE6DotcABT/Moy+YXrNFUHHueP1DVQvaUF28lnLuU66U9qY+mvw96j/wCqpTZvrOw7jUXt+018VixaxWriHyN4tSp5VPym0xLDzjHwWCp0UFOjTSkg4KihVHoJkREAREQBERAEREAREQBERAEREARE4VaqqCzEKBqSTYD1gHOJBVt5UvanTap+LRV9L6/SYlbeKtyp018yzfkBPPs6rpK3hzWftyXx01svBtEw9sYKnXoVqNX+HURlblYEG5vytxv4TWm3grH+8pr5J/uJmLjaj1VbNUZ9DYX09FGkx29f08V9Kbf6IujoZvvwUJvLswqXU+8jFSetjofIix9Zy7PtoGniEQEgk2HkeXzF5aW391aeN+0WoaT2ytYAg2+JTwIkdsfcmhgm70v3lQ8zpYW1ygSJdZotoxL3NdseTqGlnGzPg26jvdXouA32qEA2biAejdfOb3s3HpXprUQ6HlzB6GVFiGzsTy5eU2/cPF5S6MbAqW1Pw/8Awn5SNBrJqca5vKfyWarTx27orkqntw3VGHxbVqQslcGsQOVS57weR0YeOaaFsLFZWykkcwRxBBuCDyIOsv3eWgMZn742WpbIf8PKTk+h163MrGp2VYsPdKtEre4N3GnllP5zXV1fTyclKWMPz5RllpZrGFksXc3fTEMuWo/eslgwbmOTA8dRz63m/YTefDObF+7bgQ4tr58DKu2BsIYQE1KgqOQAxAsoAvYKOJ4nWSKYV6jFstgTfXTSefLqnp2y2PMPv/g1x0qnBbuH9i16dQMLqQR1BvOUrfCUDT1WqUP4WtJaltqsLAVla3xKDf1FpdDr+nfuTX7lEtDNdmblE1qjvHUHv0lbxRrH+lv/AHJTA7apVSFDFWP3WGU+nI+hno0a/T38Qms/Hkzzosh3RIxETYVCIiAIiIAiIgCIiAJqG2cUa1VgfcpnKo5FhozH1uB5eM2+VsmL7upUpVDqHazdfaN7+N9fWeJ16di06Vfl8/kbNFFOeX4JCJ8B6T7PhT1z4yg8RedLYVeQynwJE74kqTXZgwquCN7g389D/UP1nV+6kPEMD/mvJKdVfEKvE69JfC6x8IjBA4rCZGtx5yT2NROWsRf2aLtp45V19M3ymI5Ltc8TNp3R2dmo1nOgrDu10+4oZSR5sWPoJ9B0+uVtii/Cef0/2Z9TNRgRwUFQOItMSrs1OWYeAY2+U5YCv71J9KlMlGB55Ta/ra/rMyfPT9SmxxfDyXrDWSNo7OINxZfE+0310EyRgl+8WbzJ/ITJicyvnLyTg6lw6Dgo+U55B0E5RK3JvySJ0Y5AUa/S/kRwtO+Ru0MVf2F9T+ktojKU04+CGbJudtxqoNGqbuourc2XnfxFx5zZ5Xe6otiaWl9SP9DSxJ+gdOvlbTmXdPB42qrULOBERN5mEREAREQBERAE0rfXYhzGuoup9+w1UgWz+K2AB8ges3WJTfRG6GyR3XY65bkU/Td6fBiOmtwfLlMuntKpzsfSbhtXdJGu1Bu6Y6lCL0iefs8VPivyms4nYeJp+/h2b8VJg4+Rs30nzWo6ZZF8w3L5R61erhJd8M6xtN+gnL94P0AmIWVb5hUS3HPSqLbz0nyni6R0D5j0CsT8rTz3pUv6H+jLvUi/JlNiHPP5TitO87aFKo/8PD13/kyL/U9pN4HdWq//AFDikvNKRJY+DVSNP5R6zTR0+6x4jDC+XwVT1FcfJFbL2a2Ifu0uEH8V+Sjmin4z9BrLDo0lRVVRZVAAA5AaAThhMKlJAlNQijgALATun0+j0kdPDC5flnl3XOx5NN312Exb9roA5gLVFHEgcHA5kDiOnlNfwu2DYZhmHxDnLSms7a3SSoTUokUnOpUi9Nj1KjVT4j1BmHqPS46j64rk0afVbFtl2IFNo0z963nO39rT4hIrHbOq0L99SdAPvgZ6fnnXgPMCY9Iq3uureTD8uM+Ys6dseJJr8z0Y2Rl2ZNnG0/inU+0RyBMwFonoZz7u3HTz0nC0ta+51k+1sSzc7DoJwWnPtGqrNkS9VvhpgufW2g8zJ7Zm7VWrrWvQpn7oINVh0LDRB5a+U36fR22cVx4+eyKrL4Q7s7NzsDmqGr91Lqp5M594jqFGnmx6TcZ14egtNVRFCqosANABOyfWaXTqitQX/M8e2x2S3MRETQViIiAIiIAiIgCIiAIiIAny0+xAEREAREQBERAE13e7AUjSZjSQt1KKTx62iJxZ7WdQ9yKg2ho2mnlpNl3TwtN2GdFfX7yg/nETzYpZNzfBbFCkqgBVCjoAAPkJ2RE9U88REQBERAEREAREQD//2Q==", 
-                    size: 3 
-                }
-            } 
+            { id: 1, type: "text", icon: "\ud83d\udc96", label: "Just for You", content: null },
+            { id: 2, type: "wallpaper", icon: "\ud83d\udcf8", label: "A Special Image", content: null },
+            { id: 3, type: "playlist", icon: "\ud83c\udfa7", label: "Songs Just for You", content: null },
+            { id: 4, type: "text", icon: "\ud83d\udcdc", label: "A Poem for My Muse", content: null },
+            { id: 5, type: "link", icon: "\u2753", label: "Riddle Challenge", content: null },
+            { id: 6, type: "gallery", icon: "\ud83d\uddbc\ufe0f", label: "Memory Collage", content: null },
+            { id: 7, type: "bonus_key", icon: "\ud83d\ude02", label: "A Chuckle & A Skip", content: null },
+            { id: 8, type: "text", icon: "\ud83e\uddde", label: "Your Wish is My Command", content: null },
+            { id: 9, type: "gallery", icon: "\ud83e\udd2a", label: "A Collection of Hilarious Memes", content: null },
+            { id: 10, type: "puzzle", icon: "\ud83e\udde9", label: "The Grand Finale Puzzle", content: null }
         ];
-
         /* --- STATE --- */
         let CHEST_DATA = JSON.parse(JSON.stringify(DEFAULT_CHEST_DATA));
         const API_STATE_URL = '/api/state';
@@ -556,10 +372,10 @@
             const dislikeBtn = document.getElementById('feedback-dislike');
             
             if (type === 'like') {
-                messageEl.innerText = "Thank you! I'm so glad you enjoyed it! ❤️";
+                messageEl.innerText = "Thank you! I'm so glad you enjoyed it! \u2764\ufe0f";
                 likeBtn.classList.add('disabled');
             } else {
-                messageEl.innerText = "I hear you! I'll try to do better next time. Thank you for the honest feedback. 😊";
+                messageEl.innerText = "I hear you! I'll try to do better next time. Thank you for the honest feedback. \ud83d\ude0a";
                 dislikeBtn.classList.add('disabled');
             }
 
@@ -694,7 +510,7 @@
             
             if (isSolved) {
                 btn.style.background = 'linear-gradient(45deg, var(--success), #00cc99)';
-                btn.innerText = '✓ Complete - Click to Confirm';
+                btn.innerText = '? Complete - Click to Confirm';
             } else {
                 btn.style.background = '';
                 btn.innerText = 'Done';
@@ -704,7 +520,7 @@
         function handlePuzzleDone() {
             const isSolved = puzzleTiles.every((val, index) => val === index);
             if (!isSolved) {
-                alert('❌ Puzzle is not yet solved. Keep trying!');
+                alert('? Puzzle is not yet solved. Keep trying!');
                 return;
             }
             checkPuzzleWin();
@@ -757,7 +573,7 @@
                 messageEl.style.color = 'var(--success)';
                 messageEl.style.fontWeight = '700';
                 messageEl.style.fontSize = '1.3rem';
-                messageEl.innerText = "✨ Puzzle Solved! ✨";
+                messageEl.innerText = "? Puzzle Solved! ?";
             }
 
             logAdmin("Puzzle solved successfully.");
@@ -847,18 +663,18 @@
                     navigator.serviceWorker.controller.postMessage({
                         type: 'SHOW_NOTIFICATION',
                         chestId: chestId,
-                        title: '✨ New Key Generated!',
+                        title: '? New Key Generated!',
                         body: `A new key is ready to unlock Chest #${chestId}! Check the sidebar now.`
                     });
                 } else {
                     // Fallback for browsers without Service Worker support
                     const options = {
-                        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50" y="70" font-size="80" text-anchor="middle">🔑</text></svg>',
-                        badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50" y="70" font-size="80" text-anchor="middle">🔑</text></svg>',
+                        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50" y="70" font-size="80" text-anchor="middle">\u2728</text></svg>',
+                        badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50" y="70" font-size="80" text-anchor="middle">\ud83d\udd11</text></svg>',
                         tag: 'key-notification-' + chestId,
                         requireInteraction: true
                     };
-                    const notification = new Notification(`✨ New Key Generated!`, {
+                    const notification = new Notification(`? New Key Generated!`, {
                         body: `A new key is ready to unlock Chest #${chestId}! Check the sidebar now.`,
                         ...options
                     });
@@ -885,7 +701,7 @@
             const bonusKeyMsg = document.getElementById('bonus-key-message');
 
             if (state.pendingKey) { 
-                bonusKeyMsg.innerText = "❌ Key already pending. Use it first!"; 
+                bonusKeyMsg.innerText = "? Key already pending. Use it first!"; 
                 return; 
             }
             
@@ -962,17 +778,17 @@
             }
             
             if (userKey === MASTER_RESET_KEY) {
-                if(confirm("🚨 WARNING: This will erase ALL progress. Proceed?")) {
+                if(confirm("\ud83d\udea8 WARNING: This will erase ALL progress. Proceed?")) {
                     adminResetAll(); return;
                 }
             }
 
             const chest = state.chests.find(c => c.id === id);
             
-            if (!state.pendingKey) { alert("❌ No key is currently active."); return; }
-            if (state.pendingKey.targetChestId !== id) { alert("❌ This key does not fit this chest."); return; }
-            if (!state.pendingKey.isRevealed) { alert("🔒 You must scratch the card first!"); return; }
-            if (userKey !== state.pendingKey.code) { alert("❌ Invalid Key."); return; }
+            if (!state.pendingKey) { alert("? No key is currently active."); return; }
+            if (state.pendingKey.targetChestId !== id) { alert("? This key does not fit this chest."); return; }
+            if (!state.pendingKey.isRevealed) { alert("\u274c You must scratch the card first!"); return; }
+            if (userKey !== state.pendingKey.code) { alert("? Invalid Key."); return; }
 
             chest.isLocked = false;
             chest.key = userKey;
@@ -1059,6 +875,10 @@
             return { preview: '', full: '', download: '' };
         }
 
+        function renderUnconfiguredContentNotice() {
+            return `<p class="gift-text">Content not configured by admin yet.</p>`;
+        }
+
         function injectPlaylistEmbed(anchorEl) {
             if (!anchorEl) return;
             const src = (anchorEl.getAttribute('data-src') || '').trim();
@@ -1104,21 +924,22 @@
             return '';
         }
 
-        function normalizeSpotifyPublicUrl(value) {
-            const raw = (value || '').trim();
-            if (!raw) return '';
-            if (/^https:\/\/open\.spotify\.com\/(playlist|album|track)\//i.test(raw)) return raw;
-            const m = raw.match(/^https:\/\/open\.spotify\.com\/embed\/(playlist|album|track)\/([A-Za-z0-9]+)(\?.*)?$/i);
-            if (!m) return '';
-            return `https://open.spotify.com/${m[1].toLowerCase()}/${m[2]}`;
-        }
-
         function getGiftHTML(type, content, chestId) { 
             let html = '';
             switch(type) {
-                case 'letter': case 'text': case 'coupon': html = `<p class="gift-text">${content}</p>`; break;
+                case 'letter':
+                case 'text':
+                case 'coupon':
+                    html = (typeof content === 'string' && content.trim())
+                        ? `<p class="gift-text">${content}</p>`
+                        : renderUnconfiguredContentNotice();
+                    break;
                 case 'gallery': {
                     const media = normalizeGalleryContent(content);
+                    if (!media.thumbUrls.length) {
+                        html = renderUnconfiguredContentNotice();
+                        break;
+                    }
                     html = '<div class="gift-gallery">';
                     media.thumbUrls.forEach((url, idx) => {
                         const cls = (chestId === 6) ? 'chest6-img' : '';
@@ -1142,31 +963,46 @@
                     const embedSrc = normalizeSpotifyEmbedUrl(rawUrl);
                     html = embedSrc
                         ? `<div class="media-wrapper spotify-playlist-wrapper"><iframe src="${escapeHtmlAttr(embedSrc)}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe></div>`
-                        : `<p class="gift-text">Invalid Spotify playlist link.</p>`;
+                        : renderUnconfiguredContentNotice();
                     break;
                 }
-                case 'video': html = `<div class="media-wrapper"><iframe src="${content}" allowfullscreen></iframe></div>`; break;
+                case 'video':
+                    html = (typeof content === 'string' && content.trim())
+                        ? `<div class="media-wrapper"><iframe src="${content}" allowfullscreen></iframe></div>`
+                        : renderUnconfiguredContentNotice();
+                    break;
                 case 'wallpaper': {
                     const wp = normalizeWallpaperContent(content);
+                    if (!wp.preview && !wp.full && !wp.download) {
+                        html = renderUnconfiguredContentNotice();
+                        break;
+                    }
                     const preview = escapeHtmlAttr(wp.preview);
                     const full = escapeHtmlAttr(wp.full);
                     const dl = escapeHtmlAttr(wp.download);
                     html = `<div class="gift-wallpaper"><img src="${preview}" loading="lazy" decoding="async" alt="Wallpaper" width="100%" style="border-radius:5px; border:2px solid black; cursor:pointer;" onclick="openLightbox(0, ${JSON.stringify([wp.full]).replace(/"/g, '&quot;')})"><a href="${dl}" target="_blank" class="btn btn-download" style="width:100%">Download High-Res</a></div>`;
                     break;
                 }
-                case 'link': html = `<a href="${content}" target="_blank" class="gift-link-card">CLICK TO OPEN GIFT ↗</a>`; break;
+                case 'link':
+                    html = (typeof content === 'string' && content.trim())
+                        ? `<a href="${content}" target="_blank" class="gift-link-card">CLICK TO OPEN GIFT \u2197</a>`
+                        : renderUnconfiguredContentNotice();
+                    break;
                 
                 case 'bonus_key': {
                     const nextLockedChest = state.chests.find(c => c.isLocked);
                     const targetId = nextLockedChest ? nextLockedChest.id : 'N/A';
                     const chestState = state.chests.find(c => c.id === chestId) || {};
                     const alreadyUsed = !!chestState.bonusUsed;
+                    const jokeText = (content && typeof content === 'object' && typeof content.joke === 'string' && content.joke.trim())
+                        ? content.joke
+                        : 'Bonus content not configured by admin yet.';
 
                     const btnDisplay = (state.pendingKey || alreadyUsed) ? 'none' : 'block';
                     const usedMsg = alreadyUsed ? '<p style="margin-top:10px; font-size:0.9rem; color:var(--text-muted);">Bonus used.</p>' : '';
 
                     html = `
-                        <p class="gift-text">${content.joke}</p>
+                        <p class="gift-text">${jokeText}</p>
                         <hr style="border-color: rgba(255,255,255,0.1); margin: 1rem 0;">
                         <p style="margin-bottom: 0.5rem; font-weight: 600; color: var(--accent);">BONUS UNLOCK: Skip the wait!</p>
                         <button id="bonus-key-btn" class="btn" style="width: 100%; display: ${btnDisplay};" onclick="generateBonusKey()">
@@ -1180,19 +1016,26 @@
                     break;
 
                 case 'puzzle':
-                    setTimeout(() => createPuzzle(content), 100); 
-                    html = `
-                        <div class="puzzle-wrapper">
-                            <p style="font-weight: 600; color: var(--text-main);">Rearrange the tiles to reveal the final image!</p>
-                            <div class="puzzle-grid" id="puzzle-grid-container" >
-                                </div>
-                            <button class="btn" id="puzzle-done-btn" onclick="handlePuzzleDone()" style="margin-top: 1.5rem;" disabled>Done</button>
-                            <p id="puzzle-message"></p>
-                        </div>
-                    `;
+                    if (content && typeof content === 'object' && typeof content.imageUrl === 'string' && content.imageUrl.trim()) {
+                        setTimeout(() => createPuzzle(content), 100); 
+                        html = `
+                            <div class="puzzle-wrapper">
+                                <p style="font-weight: 600; color: var(--text-main);">Rearrange the tiles to reveal the final image!</p>
+                                <div class="puzzle-grid" id="puzzle-grid-container" >
+                                    </div>
+                                <button class="btn" id="puzzle-done-btn" onclick="handlePuzzleDone()" style="margin-top: 1.5rem;" disabled>Done</button>
+                                <p id="puzzle-message"></p>
+                            </div>
+                        `;
+                    } else {
+                        html = renderUnconfiguredContentNotice();
+                    }
                     break;
                 
-                default: html = `<p>${content}</p>`;
+                default:
+                    html = (typeof content === 'string' && content.trim())
+                        ? `<p>${content}</p>`
+                        : renderUnconfiguredContentNotice();
             }
             return html;
         }
@@ -1215,12 +1058,12 @@
                 
                 if (chestState.isLocked) {
                     el.innerHTML = `
-                        <div class="chest-icon">🔒</div>
+                        <div class="chest-icon">\ud83d\udd12</div>
                         <div class="chest-title">Chest #${chestState.id}</div>
                         <p style="font-size: 0.8rem; color: #888; margin-bottom: 0.5rem;">Locked — Needs Key</p>
                         <div class="input-group">
                             <input type="text" id="input-${chestState.id}" class="chest-input" placeholder="XXXX-XXXXXX">
-                            <button class="btn btn-sm" onclick="unlockChest(${chestState.id})">🔓</button>
+                            <button class="btn btn-sm" onclick="unlockChest(${chestState.id})">\ud83d\udd13</button>
                         </div>`;
                 } else {
                     const date = new Date(chestState.unlockedAt).toLocaleDateString();
@@ -1594,7 +1437,7 @@
         function adminForceGenerate() { state.lastGenerationTime=0; checkKeyGeneration(); logAdmin("Force Gen"); }
         function adminForceReveal() { if(state.pendingKey) { state.pendingKey.isRevealed=true; saveState(); updateSidebar(); logAdmin("Force Reveal"); } }
         function adminResetAll() { 
-            if(confirm("🚨 WARNING: This will erase ALL progress and restart the entire experience. Proceed?")) {
+            if(confirm("\ud83d\udea8 WARNING: This will erase ALL progress and restart the entire experience. Proceed?")) {
                 resetStateOnServer()
                     .then((res) => {
                         if (!res.ok) throw new Error('Reset failed');
@@ -2119,7 +1962,7 @@
         function updateThemeButton() {
             const btn = document.getElementById('theme-toggle');
             const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-            btn.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+            btn.textContent = currentTheme === 'dark' ? '\ud83c\udf19' : '\ud83c\udf1e';
         }
 
         /* --- COLOR CUSTOMIZATION --- */
@@ -2473,5 +2316,7 @@
         });
 
         init();
+
+
 
 
