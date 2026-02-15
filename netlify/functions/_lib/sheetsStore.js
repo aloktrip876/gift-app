@@ -405,7 +405,7 @@ async function syncDashboardTab(sheets, states) {
         valueInputOption: "USER_ENTERED",
         requestBody: {
             values: [
-                ["Shreya Secret Chests - Admin Dashboard"],
+                ["Secret Chests - Admin Dashboard"],
                 [""],
                 ["Metric", "Value", "", "Progress Trend", "", "", "Theme Split", ""],
                 ["Total Users", totalUsers, "", `=SPARKLINE(${adminRef}!E2:E,{"charttype","column";"color","#5e35b1"})`, "", "", "Dark", `=COUNTIF(${adminRef}!L2:L,"dark")`],

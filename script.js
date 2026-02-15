@@ -160,14 +160,24 @@
             const subtitle = profile.headerSubtitle || "A digital journey of surprises, unlocked one key at a time.";
             const headerTitle = profile.headerTitle || title;
             const tabIcon = profile.tabIcon || 'images/icon_img.jpg';
+            const displayName = (user && user.name) ? user.name : 'Friend';
+            const tutorialTitle = profile.tutorialTitle || `Welcome, ${displayName}! \ud83d\udc96`;
+            const tutorialSubtitle = profile.tutorialSubtitle || 'This is your personal digital treasure chest.';
+            const footerText = profile.footerText || '\u00a9 2026 Secret Chests. Made with love.';
 
             document.title = title;
             const h1 = document.querySelector('header h1');
             const p = document.querySelector('header p');
             const favicon = document.getElementById('site-favicon');
+            const tutorialTitleEl = document.getElementById('tutorial-welcome-title');
+            const tutorialSubtitleEl = document.getElementById('tutorial-welcome-subtitle');
+            const footerBrandTextEl = document.getElementById('footer-brand-text');
             if (h1) h1.textContent = headerTitle;
             if (p) p.textContent = subtitle;
             if (favicon) favicon.setAttribute('href', tabIcon);
+            if (tutorialTitleEl) tutorialTitleEl.textContent = tutorialTitle;
+            if (tutorialSubtitleEl) tutorialSubtitleEl.textContent = tutorialSubtitle;
+            if (footerBrandTextEl) footerBrandTextEl.textContent = footerText;
 
             const userInfo = document.getElementById('user-session-info');
             const userName = document.getElementById('session-user-name');
@@ -285,6 +295,8 @@
 
         /* --- INIT --- */
         async function init() {
+            const loginModal = document.getElementById('login-modal');
+            if (loginModal && !currentUser) loginModal.classList.remove('active');
             if (!currentUser) {
                 const ok = await ensureAuthenticated();
                 if (!ok) return;

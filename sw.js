@@ -1,5 +1,5 @@
 // Service Worker for handling notifications even when app is in background
-const CACHE_NAME = 'shreya-chests-cache-v1';
+const CACHE_NAME = 'secret-chests-cache-v1';
 
 // Install event
 self.addEventListener('install', (event) => {

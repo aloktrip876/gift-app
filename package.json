@@ -1,5 +1,5 @@
 {
-  "name": "shreya-secret-chests",
+  "name": "secret-chests-app",
   "version": "1.0.0",
   "private": true,
   "description": "Netlify Functions + Google Sheets powered gift chest app",
