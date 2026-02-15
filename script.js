@@ -156,22 +156,45 @@
 
             TOTAL_CHESTS = CHEST_DATA.length;
 
-            const title = profile.pageTitle || (user && user.pageTitle) || document.title;
-            const subtitle = profile.headerSubtitle || "A digital journey of surprises, unlocked one key at a time.";
-            const headerTitle = profile.headerTitle || title;
-            const tabIcon = profile.tabIcon || 'images/icon_img.jpg';
-            const displayName = (user && user.name) ? user.name : 'Friend';
-            const tutorialTitle = profile.tutorialTitle || `Welcome, ${displayName}! \ud83d\udc96`;
-            const tutorialSubtitle = profile.tutorialSubtitle || 'This is your personal digital treasure chest.';
-            const footerText = profile.footerText || '\u00a9 2026 Secret Chests. Made with love.';
-
-            document.title = title;
             const h1 = document.querySelector('header h1');
             const p = document.querySelector('header p');
             const favicon = document.getElementById('site-favicon');
             const tutorialTitleEl = document.getElementById('tutorial-welcome-title');
             const tutorialSubtitleEl = document.getElementById('tutorial-welcome-subtitle');
             const footerBrandTextEl = document.getElementById('footer-brand-text');
+            const baseTitle = document.title || 'Secret Chests';
+            const baseHeaderTitle = h1 ? h1.textContent : baseTitle;
+            const baseHeaderSubtitle = p ? p.textContent : '';
+            const baseTabIcon = (favicon && favicon.getAttribute('href'))
+                ? favicon.getAttribute('href')
+                : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Ctext y="50" font-size="48"%3E%F0%9F%8E%81%3C/text%3E%3C/svg%3E';
+            const baseTutorialTitle = tutorialTitleEl ? tutorialTitleEl.textContent : 'Welcome! \ud83d\udc96';
+            const baseTutorialSubtitle = tutorialSubtitleEl ? tutorialSubtitleEl.textContent : '';
+            const baseFooterText = footerBrandTextEl ? footerBrandTextEl.textContent : '';
+
+            const title = (typeof profile.pageTitle === 'string' && profile.pageTitle.trim())
+                ? profile.pageTitle.trim()
+                : ((user && user.pageTitle) ? String(user.pageTitle) : baseTitle);
+            const subtitle = (typeof profile.headerSubtitle === 'string' && profile.headerSubtitle.trim())
+                ? profile.headerSubtitle.trim()
+                : baseHeaderSubtitle;
+            const headerTitle = (typeof profile.headerTitle === 'string' && profile.headerTitle.trim())
+                ? profile.headerTitle.trim()
+                : title;
+            const tabIcon = (typeof profile.tabIcon === 'string' && profile.tabIcon.trim())
+                ? profile.tabIcon.trim()
+                : baseTabIcon;
+            const tutorialTitle = (typeof profile.tutorialTitle === 'string' && profile.tutorialTitle.trim())
+                ? profile.tutorialTitle.trim()
+                : baseTutorialTitle;
+            const tutorialSubtitle = (typeof profile.tutorialSubtitle === 'string' && profile.tutorialSubtitle.trim())
+                ? profile.tutorialSubtitle.trim()
+                : baseTutorialSubtitle;
+            const footerText = (typeof profile.footerText === 'string' && profile.footerText.trim())
+                ? profile.footerText.trim()
+                : baseFooterText;
+
+            document.title = title;
             if (h1) h1.textContent = headerTitle;
             if (p) p.textContent = subtitle;
             if (favicon) favicon.setAttribute('href', tabIcon);
