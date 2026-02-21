@@ -128,6 +128,52 @@ function rangeFor(tableKey, localA1) {
     return `${tab}!${mapRangeFromBand(localA1, tableKey)}`;
 }
 
+function getRequiredSingleSheetColumnCount() {
+    return Object.keys(SINGLE_SHEET_BANDS).reduce((max, key) => {
+        const startIndex = colToIndex(SINGLE_SHEET_BANDS[key]);
+        const width = SINGLE_SHEET_WIDTHS[key] || 1;
+        return Math.max(max, startIndex + width);
+    }, 1);
+}
+
+async function ensureSingleSheetGridCapacity(sheets) {
+    if (!SINGLE_SHEET_MODE) return;
+    const requiredCols = getRequiredSingleSheetColumnCount();
+    const requiredRows = 2000;
+    const meta = await sheets.spreadsheets.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        fields: "sheets.properties.sheetId,sheets.properties.title,sheets.properties.gridProperties.columnCount,sheets.properties.gridProperties.rowCount"
+    });
+    const props = (meta.data.sheets || [])
+        .map((s) => (s && s.properties ? s.properties : null))
+        .find((p) => p && p.title === MASTER_TAB);
+    if (!props || !props.sheetId) return;
+
+    const currentCols = Number(props.gridProperties && props.gridProperties.columnCount ? props.gridProperties.columnCount : 0);
+    const currentRows = Number(props.gridProperties && props.gridProperties.rowCount ? props.gridProperties.rowCount : 0);
+    const nextCols = Math.max(currentCols || 0, requiredCols);
+    const nextRows = Math.max(currentRows || 0, requiredRows);
+    if (nextCols === currentCols && nextRows === currentRows) return;
+
+    await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        requestBody: {
+            requests: [{
+                updateSheetProperties: {
+                    properties: {
+                        sheetId: props.sheetId,
+                        gridProperties: {
+                            columnCount: nextCols,
+                            rowCount: nextRows
+                        }
+                    },
+                    fields: "gridProperties.columnCount,gridProperties.rowCount"
+                }
+            }]
+        }
+    });
+}
+
 function getCached(cacheKey) {
     const bucket = readCache[cacheKey];
     if (!bucket || !bucket.data) return null;
@@ -278,6 +324,7 @@ async function ensureTab(sheets, tabName) {
 
 async function maybePruneToMasterSheet(sheets) {
     if (!SINGLE_SHEET_MODE || singleSheetPruned) return;
+    await ensureSingleSheetGridCapacity(sheets);
     const meta = await sheets.spreadsheets.get({
         spreadsheetId: GOOGLE_SHEET_ID,
         fields: "sheets.properties.sheetId,sheets.properties.title"
@@ -549,6 +596,9 @@ async function getAccessAnalytics(sheets) {
 
 async function syncDashboardTab(sheets, states) {
     const dashboardSheetId = await ensureTab(sheets, DASHBOARD_TAB);
+    if (SINGLE_SHEET_MODE) {
+        await ensureSingleSheetGridCapacity(sheets);
+    }
     await clearBanding(sheets, dashboardSheetId);
     const adminRef = `'${ADMIN_TAB.replace(/'/g, "''")}'`;
     const dashboardOffset = bandStartIndex("dashboard");
@@ -752,6 +802,7 @@ async function clearBanding(sheets, sheetId) {
 async function formatSingleSheetSections(sheets) {
     if (!SINGLE_SHEET_MODE) return;
     const sheetId = await ensureTab(sheets, MASTER_TAB);
+    await ensureSingleSheetGridCapacity(sheets);
     await clearBanding(sheets, sheetId);
 
     const sectionColors = {
@@ -841,11 +892,7 @@ async function formatSingleSheetSections(sheets) {
         });
     }
 
-    const filterEndIndex = Object.keys(SINGLE_SHEET_BANDS).reduce((max, key) => {
-        const startIndex = colToIndex(SINGLE_SHEET_BANDS[key]);
-        const width = SINGLE_SHEET_WIDTHS[key] || 1;
-        return Math.max(max, startIndex + width);
-    }, 1);
+    const filterEndIndex = getRequiredSingleSheetColumnCount();
 
     requests.push({
         setBasicFilter: {
@@ -1001,6 +1048,9 @@ async function ensureAuthLockHeader(sheets) {
 }
 
 async function ensureFeedbackHeader(sheets) {
+    if (SINGLE_SHEET_MODE) {
+        await ensureSingleSheetGridCapacity(sheets);
+    }
     if (headerEnsured.feedback) return;
     await ensureTab(sheets, FEEDBACK_TAB);
     await maybePruneToMasterSheet(sheets);
@@ -1035,6 +1085,9 @@ async function appendFeedbackEntry({ userId = "", name = "", phone = "", session
     const text = String(feedbackText || "").trim();
     if (!text) throw new Error("feedback text is required");
     const sheets = await getSheets();
+    if (SINGLE_SHEET_MODE) {
+        await ensureSingleSheetGridCapacity(sheets);
+    }
     await ensureFeedbackHeader(sheets);
     const now = Date.now();
     const values = [[
