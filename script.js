@@ -83,6 +83,8 @@
         let saveDebounceTimer = null;
         let pendingStateSnapshot = null;
         const SAVE_DEBOUNCE_MS = 350;
+        let sharedColorPicker = null;
+        let sharedColorPickerCallback = null;
 
         // When true, don't reveal the final feedback section yet so the last chest's gift
         // can be displayed first. This is toggled when the 10th chest is just unlocked.
@@ -125,6 +127,19 @@
                 return JSON.parse(raw);
             } catch (err) {
                 return null;
+            }
+        }
+
+        function clearAllStateCaches() {
+            try {
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.indexOf('gift_state_cache_') === 0) keysToRemove.push(k);
+                }
+                keysToRemove.forEach((k) => localStorage.removeItem(k));
+            } catch (err) {
+                // Ignore cache clear errors.
             }
         }
 
@@ -1572,6 +1587,7 @@
                 resetStateOnServer()
                     .then((res) => {
                         if (!res.ok) throw new Error('Reset failed');
+                        clearAllStateCaches();
                         logAdmin("DATA ERASED. RESTARTING.");
                         location.reload();
                     })
@@ -2239,40 +2255,63 @@
             document.getElementById('customize-modal').classList.remove('active');
         }
 
-        function openNativeColorPicker(initialHex, onInput) {
+        function getSharedColorPicker() {
+            if (sharedColorPicker && sharedColorPicker.parentNode) return sharedColorPicker;
             const picker = document.createElement('input');
             picker.type = 'color';
-            picker.value = normalizeHexColor(initialHex || '#6b2fb5', '#6b2fb5');
-            // Keep it in viewport for better mobile compatibility.
+            picker.value = '#6b2fb5';
+            // Keep attached for mobile Safari/Chrome reliability.
             picker.style.position = 'fixed';
-            picker.style.top = '12px';
-            picker.style.left = '12px';
-            picker.style.width = '1px';
-            picker.style.height = '1px';
-            picker.style.opacity = '0';
-            picker.style.pointerEvents = 'none';
-            picker.style.zIndex = '2147483647';
-            document.body.appendChild(picker);
-
-            const cleanup = () => {
-                if (picker && picker.parentNode) picker.parentNode.removeChild(picker);
-            };
-
+            picker.style.top = '0';
+            picker.style.left = '0';
+            picker.style.width = '44px';
+            picker.style.height = '44px';
+            picker.style.opacity = '0.001';
+            picker.style.border = '0';
+            picker.style.padding = '0';
+            picker.style.margin = '0';
+            picker.style.zIndex = '-1';
+            picker.setAttribute('aria-hidden', 'true');
+            picker.tabIndex = -1;
             picker.addEventListener('input', () => {
-                if (typeof onInput === 'function') onInput(picker.value);
+                if (typeof sharedColorPickerCallback === 'function') {
+                    sharedColorPickerCallback(picker.value);
+                }
             });
-            picker.addEventListener('change', cleanup, { once: true });
-            picker.addEventListener('blur', () => setTimeout(cleanup, 250), { once: true });
+            picker.addEventListener('change', () => {
+                if (typeof sharedColorPickerCallback === 'function') {
+                    sharedColorPickerCallback(picker.value);
+                }
+            });
+            document.body.appendChild(picker);
+            sharedColorPicker = picker;
+            return picker;
+        }
+
+        function openNativeColorPicker(initialHex, onInput) {
+            const picker = getSharedColorPicker();
+            picker.value = normalizeHexColor(initialHex || '#6b2fb5', '#6b2fb5');
+            sharedColorPickerCallback = typeof onInput === 'function' ? onInput : null;
+
+            try {
+                picker.focus({ preventScroll: true });
+            } catch (err) {
+                try { picker.focus(); } catch (_) {}
+            }
 
             try {
                 if (typeof picker.showPicker === 'function') {
                     picker.showPicker();
-                } else {
-                    picker.click();
+                    return;
                 }
             } catch (err) {
-                // Fallback for browsers that block showPicker.
+                // Continue to click fallback.
+            }
+
+            try {
                 picker.click();
+            } catch (err) {
+                // Mobile hard-fallback: ask user to retry gesture.
             }
         }
 
