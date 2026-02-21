@@ -24,7 +24,16 @@
         })();
     </script>
 </head>
-<body>
+<body class="app-loading">
+
+    <div id="boot-loader" aria-live="polite" aria-label="Loading">
+        <div class="boot-loader-shell">
+            <div class="boot-loader-ring boot-loader-ring-a"></div>
+            <div class="boot-loader-ring boot-loader-ring-b"></div>
+            <div class="boot-loader-core"></div>
+        </div>
+        <p class="boot-loader-text">Preparing your space</p>
+    </div>
 
     <canvas id="confetti-canvas"></canvas>
 
@@ -112,7 +121,8 @@
                 <div id="feedback-message" style="margin-top: 1rem; color: var(--accent); font-weight: 700;"></div>
 
                 <div id="restart-input-wrapper">
-                    <input type="text" id="restart-input" >
+                    <input type="text" id="restart-input" placeholder="Type feedback (or RESTART)" autocomplete="off">
+                    <button class="btn btn-sm" id="feedback-submit-btn" onclick="submitFeedbackForm()" style="margin-top:0.8rem;">Submit Feedback</button>
                 </div>
 
                 <p style="margin-top: 2rem; font-size: 0.9rem; color: var(--text-muted);">

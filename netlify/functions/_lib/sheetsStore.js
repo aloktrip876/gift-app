@@ -3,13 +3,24 @@
 const { google } = require("googleapis");
 const crypto = require("crypto");
 
-const STORE_TAB = process.env.GOOGLE_STATE_TAB || "StateStore";
-const ADMIN_TAB = process.env.GOOGLE_SHEET_TAB || "States";
-const DASHBOARD_TAB = process.env.GOOGLE_DASHBOARD_TAB || "Dashboard";
-const ACCESS_TAB = process.env.GOOGLE_ACCESS_TAB || "AccessLog";
-const LOGIN_TAB = process.env.GOOGLE_LOGIN_TAB || "LoginInfo";
-const SESSION_TAB = process.env.GOOGLE_SESSION_TAB || "SessionLogs";
-const AUTH_LOCK_TAB = process.env.GOOGLE_AUTH_LOCK_TAB || "AuthLocks";
+const SINGLE_SHEET_MODE = String(process.env.GOOGLE_SINGLE_SHEET_MODE || "true").toLowerCase() === "true";
+const MASTER_TAB = process.env.GOOGLE_MASTER_TAB || "GiftControlCenter";
+const LEGACY_STORE_TAB = process.env.GOOGLE_STATE_TAB || "StateStore";
+const LEGACY_ADMIN_TAB = process.env.GOOGLE_SHEET_TAB || "States";
+const LEGACY_DASHBOARD_TAB = process.env.GOOGLE_DASHBOARD_TAB || "Dashboard";
+const LEGACY_ACCESS_TAB = process.env.GOOGLE_ACCESS_TAB || "AccessLog";
+const LEGACY_LOGIN_TAB = process.env.GOOGLE_LOGIN_TAB || "LoginInfo";
+const LEGACY_SESSION_TAB = process.env.GOOGLE_SESSION_TAB || "SessionLogs";
+const LEGACY_AUTH_LOCK_TAB = process.env.GOOGLE_AUTH_LOCK_TAB || "AuthLocks";
+const LEGACY_FEEDBACK_TAB = process.env.GOOGLE_FEEDBACK_TAB || "Feedback";
+const STORE_TAB = SINGLE_SHEET_MODE ? MASTER_TAB : (process.env.GOOGLE_STATE_TAB || "StateStore");
+const ADMIN_TAB = SINGLE_SHEET_MODE ? MASTER_TAB : (process.env.GOOGLE_SHEET_TAB || "States");
+const DASHBOARD_TAB = SINGLE_SHEET_MODE ? MASTER_TAB : (process.env.GOOGLE_DASHBOARD_TAB || "Dashboard");
+const ACCESS_TAB = SINGLE_SHEET_MODE ? MASTER_TAB : (process.env.GOOGLE_ACCESS_TAB || "AccessLog");
+const LOGIN_TAB = SINGLE_SHEET_MODE ? MASTER_TAB : (process.env.GOOGLE_LOGIN_TAB || "LoginInfo");
+const SESSION_TAB = SINGLE_SHEET_MODE ? MASTER_TAB : (process.env.GOOGLE_SESSION_TAB || "SessionLogs");
+const AUTH_LOCK_TAB = SINGLE_SHEET_MODE ? MASTER_TAB : (process.env.GOOGLE_AUTH_LOCK_TAB || "AuthLocks");
+const FEEDBACK_TAB = SINGLE_SHEET_MODE ? MASTER_TAB : (process.env.GOOGLE_FEEDBACK_TAB || "Feedback");
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 const SERVICE_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
 const SERVICE_KEY = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "").replace(/\\n/g, "\n");
@@ -24,7 +35,8 @@ const headerEnsured = {
     access: false,
     login: false,
     session: false,
-    authLock: false
+    authLock: false,
+    feedback: false
 };
 
 const readCache = {
@@ -36,6 +48,85 @@ const readCache = {
 
 const READ_CACHE_TTL_MS = 20000;
 let lastAutoSyncMs = 0;
+let singleSheetPruned = false;
+
+const SINGLE_SHEET_BANDS = {
+    admin: "A",
+    store: "BA",
+    access: "BE",
+    login: "BK",
+    session: "BS",
+    authLock: "CF",
+    dashboard: "CN",
+    feedback: "CY"
+};
+const SINGLE_SHEET_WIDTHS = {
+    admin: 26,
+    store: 3,
+    access: 5,
+    login: 7,
+    session: 12,
+    authLock: 7,
+    dashboard: 11,
+    feedback: 8
+};
+const LEGACY_TABLE_MAP = {
+    store: { tab: LEGACY_STORE_TAB, endCol: "C" },
+    access: { tab: LEGACY_ACCESS_TAB, endCol: "E" },
+    login: { tab: LEGACY_LOGIN_TAB, endCol: "G" },
+    session: { tab: LEGACY_SESSION_TAB, endCol: "L" },
+    authLock: { tab: LEGACY_AUTH_LOCK_TAB, endCol: "G" },
+    feedback: { tab: LEGACY_FEEDBACK_TAB, endCol: "H" },
+    admin: { tab: LEGACY_ADMIN_TAB, endCol: "Z" },
+    dashboard: { tab: LEGACY_DASHBOARD_TAB, endCol: "K" }
+};
+
+function colToIndex(col) {
+    let out = 0;
+    const s = String(col || "").toUpperCase();
+    for (let i = 0; i < s.length; i++) {
+        const code = s.charCodeAt(i);
+        if (code < 65 || code > 90) continue;
+        out = out * 26 + (code - 64);
+    }
+    return Math.max(0, out - 1);
+}
+
+function indexToCol(index) {
+    let n = Number(index) + 1;
+    let out = "";
+    while (n > 0) {
+        const rem = (n - 1) % 26;
+        out = String.fromCharCode(65 + rem) + out;
+        n = Math.floor((n - 1) / 26);
+    }
+    return out || "A";
+}
+
+function bandStartIndex(tableKey) {
+    const startCol = SINGLE_SHEET_BANDS[tableKey] || "A";
+    return colToIndex(startCol);
+}
+
+function mapRangeFromBand(localA1, tableKey) {
+    if (!SINGLE_SHEET_MODE) return localA1;
+    const shift = bandStartIndex(tableKey);
+    return String(localA1).replace(/([A-Z]+)(\d*)/g, (_, col, row) => `${indexToCol(colToIndex(col) + shift)}${row || ""}`);
+}
+
+function rangeFor(tableKey, localA1) {
+    const tab = ({
+        store: STORE_TAB,
+        admin: ADMIN_TAB,
+        dashboard: DASHBOARD_TAB,
+        access: ACCESS_TAB,
+        login: LOGIN_TAB,
+        session: SESSION_TAB,
+        authLock: AUTH_LOCK_TAB,
+        feedback: FEEDBACK_TAB
+    })[tableKey];
+    return `${tab}!${mapRangeFromBand(localA1, tableKey)}`;
+}
 
 function getCached(cacheKey) {
     const bucket = readCache[cacheKey];
@@ -183,6 +274,69 @@ async function ensureTab(sheets, tabName) {
         throw new Error(`Failed to create tab: ${tabName}`);
     }
     return created.sheetId;
+}
+
+async function maybePruneToMasterSheet(sheets) {
+    if (!SINGLE_SHEET_MODE || singleSheetPruned) return;
+    const meta = await sheets.spreadsheets.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        fields: "sheets.properties.sheetId,sheets.properties.title"
+    });
+    const properties = (meta.data.sheets || []).map((s) => s && s.properties).filter(Boolean);
+    const master = properties.find((p) => p.title === MASTER_TAB);
+    if (!master) return;
+
+    const copyLegacyToMaster = async (tableKey) => {
+        const conf = LEGACY_TABLE_MAP[tableKey];
+        if (!conf || conf.tab === MASTER_TAB) return;
+        const sourceExists = properties.some((p) => p.title === conf.tab);
+        if (!sourceExists) return;
+        const sourceRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: `${conf.tab}!A1:${conf.endCol}`
+        });
+        const sourceValues = sourceRes.data.values || [];
+        if (!sourceValues.length) return;
+
+        const targetCheck = await sheets.spreadsheets.values.get({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: rangeFor(tableKey, `A1:${conf.endCol}`)
+        });
+        const existing = targetCheck.data.values || [];
+        const hasData = existing.some((row) => Array.isArray(row) && row.some((v) => String(v || "").trim() !== ""));
+        if (hasData) return;
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: rangeFor(tableKey, "A1"),
+            valueInputOption: "RAW",
+            requestBody: { values: sourceValues }
+        });
+    };
+
+    await copyLegacyToMaster("store");
+    await copyLegacyToMaster("access");
+    await copyLegacyToMaster("login");
+    await copyLegacyToMaster("session");
+    await copyLegacyToMaster("authLock");
+    await copyLegacyToMaster("feedback");
+    await copyLegacyToMaster("admin");
+    await copyLegacyToMaster("dashboard");
+
+    const deleteTargets = properties.filter((p) => p.title !== MASTER_TAB);
+    if (!deleteTargets.length) {
+        singleSheetPruned = true;
+        return;
+    }
+    await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        requestBody: {
+            requests: deleteTargets.map((p) => ({
+                deleteSheet: { sheetId: p.sheetId }
+            }))
+        }
+    });
+    singleSheetPruned = true;
 }
 
 function rgb(r, g, b) {
@@ -376,11 +530,30 @@ async function getSessionAnalytics(sheets) {
     };
 }
 
+async function getAccessAnalytics(sheets) {
+    const rows = await getAccessRows(sheets);
+    const eventCounts = {};
+    for (const row of rows) {
+        const key = String(row.event || "unknown").trim() || "unknown";
+        eventCounts[key] = (eventCounts[key] || 0) + 1;
+    }
+    return {
+        totalEvents: rows.length,
+        loginEvents: Number(eventCounts.login || 0),
+        unlockEvents: Number(eventCounts.unlock || 0),
+        openEvents: Number(eventCounts.open || 0),
+        feedbackEvents: Number(eventCounts.feedback || 0),
+        byType: eventCounts
+    };
+}
+
 async function syncDashboardTab(sheets, states) {
     const dashboardSheetId = await ensureTab(sheets, DASHBOARD_TAB);
     await clearBanding(sheets, dashboardSheetId);
     const adminRef = `'${ADMIN_TAB.replace(/'/g, "''")}'`;
+    const dashboardOffset = bandStartIndex("dashboard");
     const sessionStats = await getSessionAnalytics(sheets);
+    const accessStats = await getAccessAnalytics(sheets);
     const totalUsers = states.length;
     const progressPercents = states.map((entry) => {
         const chests = Array.isArray(entry.state && entry.state.chests) ? entry.state.chests : [];
@@ -397,11 +570,11 @@ async function syncDashboardTab(sheets, states) {
 
     await sheets.spreadsheets.values.clear({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${DASHBOARD_TAB}!A:K`
+        range: rangeFor("dashboard", "A:K")
     });
     await sheets.spreadsheets.values.update({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${DASHBOARD_TAB}!A1`,
+        range: rangeFor("dashboard", "A1"),
         valueInputOption: "USER_ENTERED",
         requestBody: {
             values: [
@@ -415,7 +588,11 @@ async function syncDashboardTab(sheets, states) {
                 ["Feedback Given", feedbackGiven],
                 ["Total Sessions", sessionStats.totalSessions, "", "", "", "", "Active Sessions", sessionStats.activeSessions],
                 ["Avg Session Duration (sec)", sessionStats.avgDurationSec],
-                ["Total Screen Time (sec)", sessionStats.totalScreenSec]
+                ["Total Screen Time (sec)", sessionStats.totalScreenSec, "", "", "", "", "Total Events", accessStats.totalEvents],
+                ["Login Events", accessStats.loginEvents, "", "", "", "", "Unlock Events", accessStats.unlockEvents],
+                ["Open Events", accessStats.openEvents, "", "", "", "", "Feedback Events", accessStats.feedbackEvents],
+                ["Top Event Type", Object.entries(accessStats.byType).sort((a, b) => b[1] - a[1])[0]?.[0] || "None", "", "", "", "", "Top Event Count", Object.entries(accessStats.byType).sort((a, b) => b[1] - a[1])[0]?.[1] || 0],
+                ["Users with >=50% Progress", `=COUNTIF(${adminRef}!E2:E,\">=0.5\")`, "", "", "", "", "Users with 100% Progress", `=COUNTIF(${adminRef}!E2:E,\">=1\")`]
             ]
         }
     });
@@ -428,25 +605,25 @@ async function syncDashboardTab(sheets, states) {
                     updateSheetProperties: {
                         properties: {
                             sheetId: dashboardSheetId,
-                            gridProperties: { frozenRowCount: 3, hideGridlines: true }
+                            gridProperties: { frozenRowCount: 3 }
                         },
-                        fields: "gridProperties.frozenRowCount,gridProperties.hideGridlines"
+                        fields: "gridProperties.frozenRowCount"
                     }
                 },
                 {
                     unmergeCells: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 8 }
+                        range: { sheetId: dashboardSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: dashboardOffset, endColumnIndex: dashboardOffset + 8 }
                     }
                 },
                 {
                     mergeCells: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 8 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: dashboardOffset, endColumnIndex: dashboardOffset + 8 },
                         mergeType: "MERGE_ALL"
                     }
                 },
                 {
                     repeatCell: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 8 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: dashboardOffset, endColumnIndex: dashboardOffset + 8 },
                         cell: {
                             userEnteredFormat: {
                                 backgroundColor: DASH_COLORS.brand,
@@ -459,7 +636,7 @@ async function syncDashboardTab(sheets, states) {
                 },
                 {
                     repeatCell: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 8 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: dashboardOffset, endColumnIndex: dashboardOffset + 8 },
                         cell: {
                             userEnteredFormat: {
                                 backgroundColor: DASH_COLORS.brandSoft,
@@ -471,7 +648,7 @@ async function syncDashboardTab(sheets, states) {
                 },
                 {
                     repeatCell: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 3, endRowIndex: 11, startColumnIndex: 0, endColumnIndex: 2 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 3, endRowIndex: 15, startColumnIndex: dashboardOffset, endColumnIndex: dashboardOffset + 2 },
                         cell: {
                             userEnteredFormat: {
                                 backgroundColor: DASH_COLORS.bg,
@@ -483,35 +660,35 @@ async function syncDashboardTab(sheets, states) {
                 },
                 {
                     repeatCell: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 2 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: dashboardOffset, endColumnIndex: dashboardOffset + 2 },
                         cell: { userEnteredFormat: { backgroundColor: DASH_COLORS.infoSoft } },
                         fields: "userEnteredFormat.backgroundColor"
                     }
                 },
                 {
                     repeatCell: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 2 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: dashboardOffset, endColumnIndex: dashboardOffset + 2 },
                         cell: { userEnteredFormat: { backgroundColor: DASH_COLORS.successSoft } },
                         fields: "userEnteredFormat.backgroundColor"
                     }
                 },
                 {
                     repeatCell: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 5, endRowIndex: 11, startColumnIndex: 0, endColumnIndex: 2 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 5, endRowIndex: 15, startColumnIndex: dashboardOffset, endColumnIndex: dashboardOffset + 2 },
                         cell: { userEnteredFormat: { backgroundColor: DASH_COLORS.warningSoft } },
                         fields: "userEnteredFormat.backgroundColor"
                     }
                 },
                 {
                     repeatCell: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 1, endColumnIndex: 2 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: dashboardOffset + 1, endColumnIndex: dashboardOffset + 2 },
                         cell: { userEnteredFormat: { numberFormat: { type: "PERCENT", pattern: "0.0%" } } },
                         fields: "userEnteredFormat.numberFormat"
                     }
                 },
                 {
                     updateBorders: {
-                        range: { sheetId: dashboardSheetId, startRowIndex: 2, endRowIndex: 11, startColumnIndex: 0, endColumnIndex: 8 },
+                        range: { sheetId: dashboardSheetId, startRowIndex: 2, endRowIndex: 15, startColumnIndex: dashboardOffset, endColumnIndex: dashboardOffset + 8 },
                         top: { style: "SOLID", color: DASH_COLORS.border },
                         bottom: { style: "SOLID", color: DASH_COLORS.border },
                         left: { style: "SOLID", color: DASH_COLORS.border },
@@ -525,8 +702,8 @@ async function syncDashboardTab(sheets, states) {
                         dimensions: {
                             sheetId: dashboardSheetId,
                             dimension: "COLUMNS",
-                            startIndex: 0,
-                            endIndex: 8
+                            startIndex: dashboardOffset,
+                            endIndex: dashboardOffset + 8
                         }
                     }
                 }
@@ -572,19 +749,138 @@ async function clearBanding(sheets, sheetId) {
     }
 }
 
+async function formatSingleSheetSections(sheets) {
+    if (!SINGLE_SHEET_MODE) return;
+    const sheetId = await ensureTab(sheets, MASTER_TAB);
+    await clearBanding(sheets, sheetId);
+
+    const sectionColors = {
+        admin: DASH_COLORS.brandSoft,
+        dashboard: DASH_COLORS.infoSoft,
+        login: DASH_COLORS.successSoft,
+        store: DASH_COLORS.warningSoft,
+        session: rgb(0.92, 0.94, 1.0),
+        access: rgb(0.94, 0.98, 0.95),
+        authLock: rgb(1.0, 0.92, 0.92),
+        feedback: rgb(0.96, 0.93, 1.0)
+    };
+
+    const requests = [{
+        updateSheetProperties: {
+            properties: {
+                sheetId,
+                gridProperties: { frozenRowCount: 1, hideGridlines: true }
+            },
+            fields: "gridProperties.frozenRowCount,gridProperties.hideGridlines"
+        }
+    }];
+
+    for (const [key, startCol] of Object.entries(SINGLE_SHEET_BANDS)) {
+        const startIndex = colToIndex(startCol);
+        const width = SINGLE_SHEET_WIDTHS[key] || 1;
+        requests.push({
+            repeatCell: {
+                range: {
+                    sheetId,
+                    startRowIndex: 0,
+                    endRowIndex: 1,
+                    startColumnIndex: startIndex,
+                    endColumnIndex: startIndex + width
+                },
+                cell: {
+                    userEnteredFormat: {
+                        backgroundColor: sectionColors[key] || DASH_COLORS.bg,
+                        textFormat: { bold: true, foregroundColor: DASH_COLORS.ink, fontSize: 10 },
+                        horizontalAlignment: "CENTER",
+                        verticalAlignment: "MIDDLE"
+                    }
+                },
+                fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+            }
+        });
+        requests.push({
+            autoResizeDimensions: {
+                dimensions: {
+                    sheetId,
+                    dimension: "COLUMNS",
+                    startIndex,
+                    endIndex: startIndex + width
+                }
+            }
+        });
+        requests.push({
+            updateBorders: {
+                range: {
+                    sheetId,
+                    startRowIndex: 0,
+                    endRowIndex: 2000,
+                    startColumnIndex: startIndex,
+                    endColumnIndex: startIndex + width
+                },
+                left: { style: "SOLID_MEDIUM", color: DASH_COLORS.border },
+                right: { style: "SOLID_MEDIUM", color: DASH_COLORS.border }
+            }
+        });
+        requests.push({
+            addBanding: {
+                bandedRange: {
+                    range: {
+                        sheetId,
+                        startRowIndex: 1,
+                        endRowIndex: 2000,
+                        startColumnIndex: startIndex,
+                        endColumnIndex: startIndex + width
+                    },
+                    rowProperties: {
+                        headerColor: sectionColors[key] || DASH_COLORS.brandSoft,
+                        firstBandColor: rgb(1, 1, 1),
+                        secondBandColor: rgb(0.97, 0.98, 1.0)
+                    }
+                }
+            }
+        });
+    }
+
+    const filterEndIndex = Object.keys(SINGLE_SHEET_BANDS).reduce((max, key) => {
+        const startIndex = colToIndex(SINGLE_SHEET_BANDS[key]);
+        const width = SINGLE_SHEET_WIDTHS[key] || 1;
+        return Math.max(max, startIndex + width);
+    }, 1);
+
+    requests.push({
+        setBasicFilter: {
+            filter: {
+                range: {
+                    sheetId,
+                    startRowIndex: 0,
+                    endRowIndex: 2000,
+                    startColumnIndex: 0,
+                    endColumnIndex: filterEndIndex
+                }
+            }
+        }
+    });
+
+    await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        requestBody: { requests }
+    });
+}
+
 async function ensureStoreHeader(sheets) {
     if (headerEnsured.store) return;
     await ensureTab(sheets, STORE_TAB);
+    await maybePruneToMasterSheet(sheets);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${STORE_TAB}!A1:C1`
+        range: rangeFor("store", "A1:C1")
     });
     const row = (headerRes.data.values && headerRes.data.values[0]) || [];
     const ok = (row[0] === "user_id" || row[0] === "client_id") && row[1] === "updated_at" && row[2] === "state_json";
     if (!ok) {
         await sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${STORE_TAB}!A1:C1`,
+            range: rangeFor("store", "A1:C1"),
             valueInputOption: "RAW",
             requestBody: {
                 values: [["user_id", "updated_at", "state_json"]]
@@ -597,16 +893,17 @@ async function ensureStoreHeader(sheets) {
 async function ensureAccessHeader(sheets) {
     if (headerEnsured.access) return;
     await ensureTab(sheets, ACCESS_TAB);
+    await maybePruneToMasterSheet(sheets);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${ACCESS_TAB}!A1:E1`
+        range: rangeFor("access", "A1:E1")
     });
     const row = (headerRes.data.values && headerRes.data.values[0]) || [];
     const ok = row[0] === "accessed_at_ist" && row[1] === "accessed_at_ms" && row[2] === "user_id" && row[3] === "session_id" && row[4] === "event";
     if (!ok) {
         await sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${ACCESS_TAB}!A1:E1`,
+            range: rangeFor("access", "A1:E1"),
             valueInputOption: "RAW",
             requestBody: {
                 values: [["accessed_at_ist", "accessed_at_ms", "user_id", "session_id", "event"]]
@@ -619,9 +916,10 @@ async function ensureAccessHeader(sheets) {
 async function ensureLoginHeader(sheets) {
     if (headerEnsured.login) return;
     await ensureTab(sheets, LOGIN_TAB);
+    await maybePruneToMasterSheet(sheets);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${LOGIN_TAB}!A1:G1`
+        range: rangeFor("login", "A1:G1")
     });
     const row = (headerRes.data.values && headerRes.data.values[0]) || [];
     const expected = ["user_id", "name", "phone", "is_active", "page_title", "content_json", "notes"];
@@ -629,7 +927,7 @@ async function ensureLoginHeader(sheets) {
     if (!ok) {
         await sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${LOGIN_TAB}!A1:G1`,
+            range: rangeFor("login", "A1:G1"),
             valueInputOption: "RAW",
             requestBody: { values: [expected] }
         });
@@ -640,9 +938,10 @@ async function ensureLoginHeader(sheets) {
 async function ensureSessionHeader(sheets) {
     if (headerEnsured.session) return;
     await ensureTab(sheets, SESSION_TAB);
+    await maybePruneToMasterSheet(sheets);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${SESSION_TAB}!A1:L1`
+        range: rangeFor("session", "A1:L1")
     });
     const row = (headerRes.data.values && headerRes.data.values[0]) || [];
     const expected = [
@@ -663,7 +962,7 @@ async function ensureSessionHeader(sheets) {
     if (!ok) {
         await sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${SESSION_TAB}!A1:L1`,
+            range: rangeFor("session", "A1:L1"),
             valueInputOption: "RAW",
             requestBody: { values: [expected] }
         });
@@ -674,9 +973,10 @@ async function ensureSessionHeader(sheets) {
 async function ensureAuthLockHeader(sheets) {
     if (headerEnsured.authLock) return;
     await ensureTab(sheets, AUTH_LOCK_TAB);
+    await maybePruneToMasterSheet(sheets);
     const headerRes = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${AUTH_LOCK_TAB}!A1:G1`
+        range: rangeFor("authLock", "A1:G1")
     });
     const row = (headerRes.data.values && headerRes.data.values[0]) || [];
     const expected = [
@@ -692,12 +992,69 @@ async function ensureAuthLockHeader(sheets) {
     if (!ok) {
         await sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${AUTH_LOCK_TAB}!A1:G1`,
+            range: rangeFor("authLock", "A1:G1"),
             valueInputOption: "RAW",
             requestBody: { values: [expected] }
         });
     }
     headerEnsured.authLock = true;
+}
+
+async function ensureFeedbackHeader(sheets) {
+    if (headerEnsured.feedback) return;
+    await ensureTab(sheets, FEEDBACK_TAB);
+    await maybePruneToMasterSheet(sheets);
+    const headerRes = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: rangeFor("feedback", "A1:H1")
+    });
+    const row = (headerRes.data.values && headerRes.data.values[0]) || [];
+    const expected = [
+        "submitted_at_ist",
+        "submitted_at_ms",
+        "user_id",
+        "name",
+        "phone",
+        "session_id",
+        "reaction",
+        "feedback_text"
+    ];
+    const ok = expected.every((v, i) => row[i] === v);
+    if (!ok) {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: rangeFor("feedback", "A1:H1"),
+            valueInputOption: "RAW",
+            requestBody: { values: [expected] }
+        });
+    }
+    headerEnsured.feedback = true;
+}
+
+async function appendFeedbackEntry({ userId = "", name = "", phone = "", sessionId = "", reaction = "", feedbackText = "" } = {}) {
+    const text = String(feedbackText || "").trim();
+    if (!text) throw new Error("feedback text is required");
+    const sheets = await getSheets();
+    await ensureFeedbackHeader(sheets);
+    const now = Date.now();
+    const values = [[
+        formatIst(now),
+        now,
+        String(userId || ""),
+        String(name || ""),
+        String(phone || ""),
+        String(sessionId || ""),
+        String(reaction || ""),
+        text
+    ]];
+    await sheets.spreadsheets.values.append({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: rangeFor("feedback", "A:H"),
+        valueInputOption: "RAW",
+        insertDataOption: "INSERT_ROWS",
+        requestBody: { values }
+    });
+    return { ok: true, at: now };
 }
 
 async function logAccessEvent(userId, eventType = "visit", sessionId = "") {
@@ -707,7 +1064,7 @@ async function logAccessEvent(userId, eventType = "visit", sessionId = "") {
     try {
         await sheets.spreadsheets.values.append({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${ACCESS_TAB}!A:E`,
+            range: rangeFor("access", "A:E"),
             valueInputOption: "RAW",
             insertDataOption: "INSERT_ROWS",
             requestBody: { values }
@@ -717,7 +1074,7 @@ async function logAccessEvent(userId, eventType = "visit", sessionId = "") {
         await ensureAccessHeader(sheets);
         await sheets.spreadsheets.values.append({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${ACCESS_TAB}!A:E`,
+            range: rangeFor("access", "A:E"),
             valueInputOption: "RAW",
             insertDataOption: "INSERT_ROWS",
             requestBody: { values }
@@ -731,7 +1088,7 @@ async function getLoginRows(sheets) {
     await ensureLoginHeader(sheets);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${LOGIN_TAB}!A2:G`
+        range: rangeFor("login", "A2:G")
     });
     const values = res.data.values || [];
     const rows = values.map((r, idx) => ({
@@ -762,7 +1119,7 @@ async function getAuthLockRows(sheets) {
     await ensureAuthLockHeader(sheets);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${AUTH_LOCK_TAB}!A2:G`
+        range: rangeFor("authLock", "A2:G")
     });
     const values = res.data.values || [];
     const rows = values.map((r, idx) => ({
@@ -804,14 +1161,14 @@ async function upsertAuthLock(lockKey, data) {
     if (existing) {
         await sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${AUTH_LOCK_TAB}!A${existing.rowNumber}:G${existing.rowNumber}`,
+            range: rangeFor("authLock", `A${existing.rowNumber}:G${existing.rowNumber}`),
             valueInputOption: "RAW",
             requestBody: { values: payload }
         });
     } else {
         await sheets.spreadsheets.values.append({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${AUTH_LOCK_TAB}!A:G`,
+            range: rangeFor("authLock", "A:G"),
             valueInputOption: "RAW",
             insertDataOption: "INSERT_ROWS",
             requestBody: { values: payload }
@@ -965,14 +1322,14 @@ async function upsertLoginUser(input) {
     if (existing) {
         await sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${LOGIN_TAB}!A${existing.rowNumber}:G${existing.rowNumber}`,
+            range: rangeFor("login", `A${existing.rowNumber}:G${existing.rowNumber}`),
             valueInputOption: "RAW",
             requestBody: { values }
         });
     } else {
         await sheets.spreadsheets.values.append({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${LOGIN_TAB}!A:G`,
+            range: rangeFor("login", "A:G"),
             valueInputOption: "RAW",
             insertDataOption: "INSERT_ROWS",
             requestBody: { values }
@@ -998,21 +1355,30 @@ async function deleteLoginUser(userId) {
     const existing = rows.find((r) => r.userId === id);
     if (!existing) return { ok: true, deleted: false };
 
-    await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: GOOGLE_SHEET_ID,
-        requestBody: {
-            requests: [{
-                deleteDimension: {
-                    range: {
-                        sheetId: await ensureTab(sheets, LOGIN_TAB),
-                        dimension: "ROWS",
-                        startIndex: existing.rowNumber - 1,
-                        endIndex: existing.rowNumber
+    if (SINGLE_SHEET_MODE) {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: rangeFor("login", `A${existing.rowNumber}:G${existing.rowNumber}`),
+            valueInputOption: "RAW",
+            requestBody: { values: [["", "", "", "", "", "", ""]] }
+        });
+    } else {
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            requestBody: {
+                requests: [{
+                    deleteDimension: {
+                        range: {
+                            sheetId: await ensureTab(sheets, LOGIN_TAB),
+                            dimension: "ROWS",
+                            startIndex: existing.rowNumber - 1,
+                            endIndex: existing.rowNumber
+                        }
                     }
-                }
-            }]
-        }
-    });
+                }]
+            }
+        });
+    }
     invalidateCache("loginRows");
     return { ok: true, deleted: true };
 }
@@ -1065,7 +1431,7 @@ async function getSessionRows(sheets) {
     await ensureSessionHeader(sheets);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${SESSION_TAB}!A2:L`
+        range: rangeFor("session", "A2:L")
     });
     const values = res.data.values || [];
     const rows = values.map((r, idx) => ({
@@ -1108,7 +1474,7 @@ async function createUserSession(user) {
     await ensureSessionHeader(sheets);
     await sheets.spreadsheets.values.append({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${SESSION_TAB}!A:L`,
+        range: rangeFor("session", "A:L"),
         valueInputOption: "RAW",
         insertDataOption: "INSERT_ROWS",
         requestBody: { values: row }
@@ -1131,7 +1497,7 @@ async function touchSession(sessionId) {
     const now = Date.now();
     await sheets.spreadsheets.values.update({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${SESSION_TAB}!K${session.rowNumber}:K${session.rowNumber}`,
+        range: rangeFor("session", `K${session.rowNumber}:K${session.rowNumber}`),
         valueInputOption: "RAW",
         requestBody: { values: [[formatIst(now)]] }
     });
@@ -1147,7 +1513,7 @@ async function closeSession(sessionId, screenTimeSec = 0) {
     const durationSec = Math.max(0, Math.floor((now - (session.loginMs || now)) / 1000));
     await sheets.spreadsheets.values.update({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${SESSION_TAB}!G${session.rowNumber}:L${session.rowNumber}`,
+        range: rangeFor("session", `G${session.rowNumber}:L${session.rowNumber}`),
         valueInputOption: "RAW",
         requestBody: {
             values: [[
@@ -1200,7 +1566,7 @@ async function getStoreRows(sheets) {
     await ensureStoreHeader(sheets);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${STORE_TAB}!A2:C`
+        range: rangeFor("store", "A2:C")
     });
     const values = res.data.values || [];
     const rows = values.map((r, idx) => ({
@@ -1253,14 +1619,14 @@ async function upsertClientState(clientId, nextState) {
     if (existing) {
         await sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${STORE_TAB}!A${existing.rowNumber}:C${existing.rowNumber}`,
+            range: rangeFor("store", `A${existing.rowNumber}:C${existing.rowNumber}`),
             valueInputOption: "RAW",
             requestBody: { values: payload }
         });
     } else {
         await sheets.spreadsheets.values.append({
             spreadsheetId: GOOGLE_SHEET_ID,
-            range: `${STORE_TAB}!A:C`,
+            range: rangeFor("store", "A:C"),
             valueInputOption: "RAW",
             insertDataOption: "INSERT_ROWS",
             requestBody: { values: payload }
@@ -1358,11 +1724,11 @@ async function syncAdminTabFromStore() {
     const adminSheetId = await ensureTab(sheets, ADMIN_TAB);
     await sheets.spreadsheets.values.clear({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${ADMIN_TAB}!A:Z`
+        range: rangeFor("admin", "A:Z")
     });
     await sheets.spreadsheets.values.update({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${ADMIN_TAB}!A1`,
+        range: rangeFor("admin", "A1"),
         valueInputOption: "RAW",
         requestBody: {
             values: [table.headers, ...table.rows]
@@ -1415,6 +1781,7 @@ async function syncAdminTabFromStore() {
         }
     });
     await syncDashboardTab(sheets, states);
+    await formatSingleSheetSections(sheets);
     return { ok: true, syncedRows: table.rows.length };
 }
 
@@ -1449,7 +1816,7 @@ async function getAccessRows(sheets) {
     await ensureAccessHeader(sheets);
     const res = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_SHEET_ID,
-        range: `${ACCESS_TAB}!A2:E`
+        range: rangeFor("access", "A2:E")
     });
     const values = res.data.values || [];
     return values.map((r) => ({
@@ -1598,6 +1965,7 @@ function json(statusCode, payload, extraHeaders = {}) {
 module.exports = {
     ADMIN_TAB,
     ACCESS_TAB,
+    FEEDBACK_TAB,
     LOGIN_TAB,
     SESSION_TAB,
     buildAdminCsv,
@@ -1606,6 +1974,7 @@ module.exports = {
     checkAdmin,
     clearSessionCookie,
     closeSession,
+    appendFeedbackEntry,
     defaultState,
     ensureClientId,
     getAuthenticatedSession,

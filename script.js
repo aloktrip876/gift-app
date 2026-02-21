@@ -30,6 +30,7 @@
         const API_ADMIN_USERS_URL = '/api/admin/users';
         const API_ADMIN_ANALYTICS_URL = '/api/admin/analytics';
         const API_ADMIN_ANALYTICS_CSV_URL = '/api/admin/analytics/sessions.csv';
+        const API_FEEDBACK_URL = '/api/feedback';
         const HEARTBEAT_INTERVAL_MS = 180000;
 
         function createDefaultState() {
@@ -199,6 +200,32 @@
             if (footerBrandTextEl && typeof profile.footerText === 'string' && profile.footerText.trim()) {
                 footerBrandTextEl.textContent = profile.footerText.trim();
             }
+        }
+
+        function setAppReady() {
+            document.body.classList.remove('app-loading');
+        }
+
+        function showToast(message, type = 'info', duration = 2800) {
+            const text = (message || '').toString().trim();
+            if (!text) return;
+            let root = document.getElementById('app-toast-root');
+            if (!root) {
+                root = document.createElement('div');
+                root.id = 'app-toast-root';
+                root.className = 'app-toast-root';
+                document.body.appendChild(root);
+            }
+            const toast = document.createElement('div');
+            const kind = type === 'success' ? 'success' : (type === 'error' ? 'error' : 'info');
+            toast.className = `app-toast app-toast-${kind}`;
+            toast.textContent = text;
+            root.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 220);
+            }, Math.max(1200, Number(duration) || 2800));
         }
 
         function getAdminKeyFromUI() {
@@ -412,12 +439,14 @@
             updateTimerInterval = setInterval(updateTimer, 1000);
             updateTimer(); 
             
-            // Setup RESTART listener
+            // Setup feedback submit listeners
             const restartInput = document.getElementById('restart-input');
             if (restartInput) {
-                restartInput.addEventListener('input', checkRestartInput);
                 restartInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') checkRestartInput(e);
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitFeedbackForm();
+                    }
                 });
             }
 
@@ -450,17 +479,7 @@
 
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             heartbeatInterval = setInterval(heartbeat, HEARTBEAT_INTERVAL_MS);
-        }
-        
-        /* --- FINAL PAGE RESTART LOGIC --- */
-        function checkRestartInput(e) {
-            const value = (e && e.target && typeof e.target.value === 'string')
-                ? e.target.value.trim().toUpperCase()
-                : '';
-            if (value === RESTART_KEYWORD) {
-                e.target.value = ''; // Clear input immediately
-                adminResetAll();
-            }
+            setAppReady();
         }
         
         /* --- FEEDBACK LOGIC --- */
@@ -489,6 +508,95 @@
             dislikeBtn.classList.add('disabled');
 
             logAdmin(`Feedback sent: ${type}`);
+        }
+
+        async function submitFeedbackForm() {
+            const inputEl = document.getElementById('restart-input');
+            const submitBtn = document.getElementById('feedback-submit-btn');
+            const messageEl = document.getElementById('feedback-message');
+            const rawValue = inputEl && typeof inputEl.value === 'string' ? inputEl.value.trim() : '';
+            if (!rawValue) {
+                if (messageEl) {
+                    messageEl.innerText = 'Please enter feedback before submitting.';
+                    messageEl.style.color = 'var(--danger)';
+                }
+                showToast('Please enter feedback before submitting.', 'error');
+                return;
+            }
+
+            if (rawValue.toUpperCase() === RESTART_KEYWORD) {
+                if (inputEl) inputEl.value = '';
+                showToast('Restarting your experience...', 'info', 1200);
+                resetStateOnServer()
+                    .then((res) => {
+                        if (!res.ok) throw new Error('Reset failed');
+                        clearAllStateCaches();
+                        location.reload();
+                    })
+                    .catch(() => {
+                        if (messageEl) {
+                            messageEl.innerText = 'Unable to reset right now. Please try again.';
+                            messageEl.style.color = 'var(--danger)';
+                        }
+                        showToast('Unable to reset right now. Please try again.', 'error');
+                    });
+                return;
+            }
+
+            const reaction = (state.feedbackSent && typeof state.feedbackSent === 'object' && state.feedbackSent.type)
+                ? String(state.feedbackSent.type)
+                : '';
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = 'Submitting...';
+            }
+
+            try {
+                const res = await fetch(API_FEEDBACK_URL, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        feedback: rawValue,
+                        reaction
+                    })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.ok) {
+                    throw new Error(data.error || `Feedback failed: ${res.status}`);
+                }
+
+                state.feedbackSent = {
+                    type: reaction || 'text',
+                    message: rawValue,
+                    at: Date.now()
+                };
+                saveState();
+                if (messageEl) {
+                    messageEl.innerText = 'Thank you. Your feedback has been submitted.';
+                    messageEl.style.color = 'var(--accent)';
+                }
+                showToast('Feedback submitted successfully.', 'success');
+                if (inputEl) {
+                    inputEl.value = '';
+                    inputEl.disabled = true;
+                }
+                if (submitBtn) {
+                    submitBtn.innerText = 'Submitted';
+                    submitBtn.disabled = true;
+                }
+            } catch (err) {
+                if (messageEl) {
+                    messageEl.innerText = err.message || 'Unable to submit feedback right now.';
+                    messageEl.style.color = 'var(--danger)';
+                }
+                showToast(err.message || 'Unable to submit feedback right now.', 'error');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Submit Feedback';
+                }
+            }
         }
 
         /* --- PUZZLE GAME LOGIC --- (Omitted for brevity, kept functional) */
@@ -769,7 +877,7 @@
                     navigator.serviceWorker.controller.postMessage({
                         type: 'SHOW_NOTIFICATION',
                         chestId: chestId,
-                        title: '? New Key Generated!',
+                        title: '🌟 New Key Generated!',
                         body: `A new key is ready to unlock Chest #${chestId}! Check the sidebar now.`
                     });
                 } else {
@@ -780,7 +888,7 @@
                         tag: 'key-notification-' + chestId,
                         requireInteraction: true
                     };
-                    const notification = new Notification(`? New Key Generated!`, {
+                    const notification = new Notification(`🌟 New Key Generated!`, {
                         body: `A new key is ready to unlock Chest #${chestId}! Check the sidebar now.`,
                         ...options
                     });
@@ -885,12 +993,6 @@
             
             if (userKey === MASTER_RESET_KEY) {
                 if(confirm("\ud83d\udea8 WARNING: This will erase ALL progress. Proceed?")) {
-                    adminResetAll(); return;
-                }
-            }
-
-            if (userKey === RESTART_KEYWORD) {
-                if(confirm("\ud83d\udea8 WARNING: This will erase ALL progress and restart the experience. Proceed?")) {
                     adminResetAll(); return;
                 }
             }
@@ -1231,6 +1333,13 @@
                 // Re-apply feedback state if already sent
                 if (state.feedbackSent) {
                     sendFeedback(typeof state.feedbackSent === 'string' ? state.feedbackSent : state.feedbackSent.type, false);
+                    const inputEl = document.getElementById('restart-input');
+                    const submitBtn = document.getElementById('feedback-submit-btn');
+                    if (inputEl) inputEl.disabled = true;
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerText = 'Submitted';
+                    }
                 }
 
                 logAdmin("All chests unlocked. Displaying chests grid and final page (deferred=" + deferFinalReveal + ").");
@@ -1499,6 +1608,7 @@
                     const loginModal = document.getElementById('login-modal');
                     if (loginModal) loginModal.classList.add('active');
                     setLoginStatus('Verify your identity to continue.');
+                    setAppReady();
                     return false;
                 }
                 if (!res.ok) throw new Error(`State load failed: ${res.status}`);
@@ -1526,7 +1636,7 @@
                 console.error(err);
                 const cached = readStateCache();
                 state = cached ? hydrateState(cached) : createDefaultState();
-                return !!cached;
+                return true;
             }
         }
 
