@@ -20,7 +20,7 @@ exports.handler = async (event) => {
 
     try {
         const states = await listClientStates();
-        const csv = buildAdminCsv(states);
+        const csv = await buildAdminCsv(states);
         return {
             statusCode: 200,
             headers: {

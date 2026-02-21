@@ -631,8 +631,8 @@ async function syncDashboardTab(sheets, states) {
                 ["Secret Chests - Admin Dashboard"],
                 [""],
                 ["Metric", "Value", "", "Progress Trend", "", "", "Theme Split", ""],
-                ["Total Users", totalUsers, "", `=SPARKLINE(${adminRef}!E2:E,{"charttype","column";"color","#5e35b1"})`, "", "", "Dark", `=COUNTIF(${adminRef}!L2:L,"dark")`],
-                ["Average Progress", avgProgress, "", "", "", "", "Light", `=COUNTIF(${adminRef}!L2:L,"light")`],
+                ["Total Users", totalUsers, "", `=SPARKLINE(${adminRef}!J2:J,{"charttype","column";"color","#5e35b1"})`, "", "", "Dark", `=COUNTIF(${adminRef}!Q2:Q,"dark")`],
+                ["Average Progress", avgProgress, "", "", "", "", "Light", `=COUNTIF(${adminRef}!Q2:Q,"light")`],
                 ["Completed Users", completedUsers],
                 ["Users With Pending Key", pendingUsers],
                 ["Feedback Given", feedbackGiven],
@@ -642,7 +642,7 @@ async function syncDashboardTab(sheets, states) {
                 ["Login Events", accessStats.loginEvents, "", "", "", "", "Unlock Events", accessStats.unlockEvents],
                 ["Open Events", accessStats.openEvents, "", "", "", "", "Feedback Events", accessStats.feedbackEvents],
                 ["Top Event Type", Object.entries(accessStats.byType).sort((a, b) => b[1] - a[1])[0]?.[0] || "None", "", "", "", "", "Top Event Count", Object.entries(accessStats.byType).sort((a, b) => b[1] - a[1])[0]?.[1] || 0],
-                ["Users with >=50% Progress", `=COUNTIF(${adminRef}!E2:E,\">=0.5\")`, "", "", "", "", "Users with 100% Progress", `=COUNTIF(${adminRef}!E2:E,\">=1\")`]
+                ["Users with >=50% Progress", `=COUNTIF(${adminRef}!J2:J,\">=0.5\")`, "", "", "", "", "Users with 100% Progress", `=COUNTIF(${adminRef}!J2:J,\">=1\")`]
             ]
         }
     });
@@ -1712,9 +1712,14 @@ function formatIst(ms) {
     }
 }
 
-function buildAdminTable(states) {
+async function buildAdminTable(sheets, states) {
     const headers = [
         "user_id",
+        "name",
+        "phone",
+        "active_status",
+        "page_title",
+        "content_json",
         "last_updated",
         "tutorial_seen",
         "progress",
@@ -1727,10 +1732,72 @@ function buildAdminTable(states) {
         "content_access_times",
         "theme",
         "color_scheme",
-        "highlight"
+        "highlight",
+        "state_data",
+        "access_date_time_ist",
+        "session_id",
+        "session_duration",
+        "screen_time",
+        "event_log"
     ];
 
-    const rows = states.map((entry) => {
+    const loginRows = await getLoginRows(sheets);
+    const sessionRows = await getSessionRows(sheets);
+    const accessRows = await getAccessRows(sheets);
+    const feedbackRows = await getFeedbackRows(sheets);
+
+    const stateByUser = new Map(states.map((entry) => [String(entry.clientId || ""), entry]));
+    const loginByUser = new Map(loginRows.map((row) => [String(row.userId || ""), row]));
+
+    const latestSessionByUser = new Map();
+    for (const row of sessionRows) {
+        const userId = String(row.userId || "");
+        if (!userId) continue;
+        const prev = latestSessionByUser.get(userId);
+        if (!prev || Number(row.loginMs || 0) >= Number(prev.loginMs || 0)) {
+            latestSessionByUser.set(userId, row);
+        }
+    }
+
+    const latestAccessByUser = new Map();
+    const eventLogByUser = new Map();
+    for (const row of accessRows) {
+        const userId = String(row.userId || "");
+        if (!userId) continue;
+        const prev = latestAccessByUser.get(userId);
+        if (!prev || Number(row.atMs || 0) >= Number(prev.atMs || 0)) {
+            latestAccessByUser.set(userId, row);
+        }
+        const eventCounts = eventLogByUser.get(userId) || {};
+        const key = String(row.event || "unknown").trim() || "unknown";
+        eventCounts[key] = (eventCounts[key] || 0) + 1;
+        eventLogByUser.set(userId, eventCounts);
+    }
+
+    const latestFeedbackByUser = new Map();
+    for (const row of feedbackRows) {
+        const userId = String(row.userId || "");
+        if (!userId) continue;
+        const prev = latestFeedbackByUser.get(userId);
+        if (!prev || Number(row.submittedAtMs || 0) >= Number(prev.submittedAtMs || 0)) {
+            latestFeedbackByUser.set(userId, row);
+        }
+    }
+
+    const allUserIds = Array.from(new Set([
+        ...Array.from(stateByUser.keys()),
+        ...Array.from(loginByUser.keys())
+    ])).filter(Boolean);
+
+    const rows = allUserIds.map((userId) => {
+        const entry = stateByUser.get(userId) || { clientId: userId, updatedAt: 0, state: withStateDefaults(null) };
+        const login = loginByUser.get(userId) || null;
+        const latestSession = latestSessionByUser.get(userId) || null;
+        const latestAccess = latestAccessByUser.get(userId) || null;
+        const latestFeedback = latestFeedbackByUser.get(userId) || null;
+        const eventCounts = eventLogByUser.get(userId) || {};
+        const eventLog = Object.keys(eventCounts).sort().map((k) => `${k}:${eventCounts[k]}`).join(" | ");
+
         const s = entry.state || withStateDefaults(null);
         const allChests = Array.isArray(s.chests) ? s.chests : [];
         const unlockedChestIds = allChests.filter((c) => c && c.isLocked === false).map((c) => c.id);
@@ -1739,6 +1806,11 @@ function buildAdminTable(states) {
         const progress = total > 0 ? `${unlocked}/${total}` : "0/0";
         const progressPercent = total > 0 ? unlocked / total : 0;
         const feedback = (() => {
+            if (latestFeedback && latestFeedback.feedbackText) {
+                const tag = latestFeedback.reaction ? `${latestFeedback.reaction}: ` : "";
+                const at = latestFeedback.submittedAtIst || formatIst(latestFeedback.submittedAtMs);
+                return at ? `${tag}${latestFeedback.feedbackText} (${at})` : `${tag}${latestFeedback.feedbackText}`;
+            }
             if (!s.feedbackSent) return "";
             if (typeof s.feedbackSent === "string") return s.feedbackSent;
             if (typeof s.feedbackSent === "object") {
@@ -1749,7 +1821,12 @@ function buildAdminTable(states) {
             return "";
         })();
         return [
-            entry.clientId,
+            userId,
+            login ? login.name : "",
+            login ? login.phone : "",
+            login ? login.isActive : "",
+            login ? login.pageTitle : "",
+            login ? login.contentJson : "",
             toIso(entry.updatedAt),
             s.tutorialSeen ? "Yes" : "No",
             progress,
@@ -1762,7 +1839,13 @@ function buildAdminTable(states) {
             JSON.stringify(s.contentAccessTimes || {}),
             s.ui && s.ui.theme ? s.ui.theme : "",
             s.ui && s.ui.colorScheme ? s.ui.colorScheme : "",
-            s.ui && s.ui.highlight ? s.ui.highlight : ""
+            s.ui && s.ui.highlight ? s.ui.highlight : "",
+            JSON.stringify(s || {}),
+            latestAccess ? (latestAccess.atIst || formatIst(latestAccess.atMs)) : "",
+            latestSession ? latestSession.sessionId : "",
+            latestSession ? Number(latestSession.durationSec || 0) : "",
+            latestSession ? Number(latestSession.screenTimeSec || 0) : "",
+            eventLog
         ];
     });
 
@@ -1772,7 +1855,7 @@ function buildAdminTable(states) {
 async function syncAdminTabFromStore() {
     const sheets = await getSheets();
     const states = await listClientStates();
-    const table = buildAdminTable(states);
+    const table = await buildAdminTable(sheets, states);
 
     const adminSheetId = await ensureTab(sheets, ADMIN_TAB);
     await sheets.spreadsheets.values.clear({
@@ -1797,7 +1880,7 @@ async function syncAdminTabFromStore() {
                     addConditionalFormatRule: {
                         index: 0,
                         rule: {
-                            ranges: [{ sheetId: adminSheetId, startRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3 }],
+                            ranges: [{ sheetId: adminSheetId, startRowIndex: 1, startColumnIndex: 7, endColumnIndex: 8 }],
                             booleanRule: {
                                 condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Yes" }] },
                                 format: { backgroundColor: DASH_COLORS.successSoft, textFormat: { bold: true, foregroundColor: DASH_COLORS.success } }
@@ -1809,7 +1892,7 @@ async function syncAdminTabFromStore() {
                     addConditionalFormatRule: {
                         index: 1,
                         rule: {
-                            ranges: [{ sheetId: adminSheetId, startRowIndex: 1, startColumnIndex: 7, endColumnIndex: 8 }],
+                            ranges: [{ sheetId: adminSheetId, startRowIndex: 1, startColumnIndex: 12, endColumnIndex: 13 }],
                             booleanRule: {
                                 condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "Yes" }] },
                                 format: { backgroundColor: DASH_COLORS.infoSoft, textFormat: { bold: true, foregroundColor: DASH_COLORS.info } }
@@ -1821,7 +1904,7 @@ async function syncAdminTabFromStore() {
                     addConditionalFormatRule: {
                         index: 2,
                         rule: {
-                            ranges: [{ sheetId: adminSheetId, startRowIndex: 1, startColumnIndex: 4, endColumnIndex: 5 }],
+                            ranges: [{ sheetId: adminSheetId, startRowIndex: 1, startColumnIndex: 9, endColumnIndex: 10 }],
                             gradientRule: {
                                 minpoint: { type: "NUMBER", value: "0", color: rgb(1.0, 0.93, 0.93) },
                                 midpoint: { type: "NUMBER", value: "0.5", color: rgb(1.0, 0.97, 0.85) },
@@ -1844,8 +1927,9 @@ function csvEscape(value) {
     return str;
 }
 
-function buildAdminCsv(states) {
-    const table = buildAdminTable(states);
+async function buildAdminCsv(states) {
+    const sheets = await getSheets();
+    const table = await buildAdminTable(sheets, states);
     const lines = [table.headers.map(csvEscape).join(",")];
     for (const row of table.rows) lines.push(row.map(csvEscape).join(","));
     return `${lines.join("\n")}\n`;
@@ -1878,6 +1962,25 @@ async function getAccessRows(sheets) {
         userId: String(r[2] || ""),
         sessionId: String(r[3] || ""),
         event: String(r[4] || "")
+    }));
+}
+
+async function getFeedbackRows(sheets) {
+    await ensureFeedbackHeader(sheets);
+    const res = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_SHEET_ID,
+        range: rangeFor("feedback", "A2:H")
+    });
+    const values = res.data.values || [];
+    return values.map((r) => ({
+        submittedAtIst: String(r[0] || ""),
+        submittedAtMs: Number(r[1] || 0),
+        userId: String(r[2] || ""),
+        name: String(r[3] || ""),
+        phone: String(r[4] || ""),
+        sessionId: String(r[5] || ""),
+        reaction: String(r[6] || ""),
+        feedbackText: String(r[7] || "")
     }));
 }
 
