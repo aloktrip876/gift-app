@@ -28,7 +28,7 @@ const SESSION_COOKIE = "gift_session_id";
 const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 3);
 const LOGIN_LOCK_MINUTES = Number(process.env.LOGIN_LOCK_MINUTES || 30);
 const AUTO_SYNC_ON_SAVE = String(process.env.GSHEET_AUTO_SYNC_ON_SAVE || "true").toLowerCase() === "true";
-const AUTO_SYNC_MIN_INTERVAL_MS = Number(process.env.GSHEET_AUTO_SYNC_MIN_INTERVAL_MS || 15000);
+const AUTO_SYNC_MIN_INTERVAL_MS = Number(process.env.GSHEET_AUTO_SYNC_MIN_INTERVAL_MS || 1000);
 const SESSION_MAX_HOURS = Number(process.env.SESSION_MAX_HOURS || 24);
 
 const headerEnsured = {
@@ -50,6 +50,8 @@ const readCache = {
 const READ_CACHE_TTL_MS = 20000;
 let lastAutoSyncMs = 0;
 let autoSyncRunning = false;
+let autoSyncTimer = null;
+let autoSyncRequestedWhileRunning = false;
 let singleSheetPruned = false;
 
 const SINGLE_SHEET_BANDS = {
@@ -1791,17 +1793,45 @@ async function upsertClientState(clientId, nextState) {
 function triggerAutoSync(_reason = "") {
     if (!AUTO_SYNC_ON_SAVE) return;
     const now = Date.now();
-    if ((now - lastAutoSyncMs) < AUTO_SYNC_MIN_INTERVAL_MS) return;
-    if (autoSyncRunning) return;
-    lastAutoSyncMs = now;
-    autoSyncRunning = true;
-    syncAdminTabFromStore()
-        .catch((err) => {
-            console.error("Auto sync failed:", err && err.message ? err.message : err);
-        })
-        .finally(() => {
-            autoSyncRunning = false;
-        });
+    const runSync = () => {
+        if (autoSyncRunning) {
+            autoSyncRequestedWhileRunning = true;
+            return;
+        }
+        autoSyncRunning = true;
+        lastAutoSyncMs = Date.now();
+        syncAdminTabFromStore()
+            .catch((err) => {
+                console.error("Auto sync failed:", err && err.message ? err.message : err);
+            })
+            .finally(() => {
+                autoSyncRunning = false;
+                if (autoSyncRequestedWhileRunning) {
+                    autoSyncRequestedWhileRunning = false;
+                    triggerAutoSync("queued");
+                }
+            });
+    };
+
+    const elapsed = now - lastAutoSyncMs;
+    if (elapsed >= AUTO_SYNC_MIN_INTERVAL_MS) {
+        if (autoSyncTimer) {
+            clearTimeout(autoSyncTimer);
+            autoSyncTimer = null;
+        }
+        runSync();
+        return;
+    }
+
+    if (autoSyncRunning) {
+        autoSyncRequestedWhileRunning = true;
+    }
+    if (autoSyncTimer) return;
+    const waitMs = Math.max(50, AUTO_SYNC_MIN_INTERVAL_MS - elapsed);
+    autoSyncTimer = setTimeout(() => {
+        autoSyncTimer = null;
+        runSync();
+    }, waitMs);
 }
 
 function toIso(ms) {
