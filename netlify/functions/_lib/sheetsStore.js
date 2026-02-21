@@ -602,7 +602,7 @@ async function syncDashboardTab(sheets, states) {
     }
     await clearBanding(sheets, dashboardSheetId);
     const adminRef = `'${ADMIN_TAB.replace(/'/g, "''")}'`;
-    const dashboardOffset = bandStartIndex("dashboard");
+    const dashboardOffset = SINGLE_SHEET_MODE ? bandStartIndex("dashboard") : 0;
     const sessionStats = await getSessionAnalytics(sheets);
     const accessStats = await getAccessAnalytics(sheets);
     const totalUsers = states.length;
