@@ -50,7 +50,6 @@ const readCache = {
 const READ_CACHE_TTL_MS = 20000;
 let lastAutoSyncMs = 0;
 let autoSyncRunning = false;
-let autoSyncTimer = null;
 let autoSyncRequestedWhileRunning = false;
 let singleSheetPruned = false;
 
@@ -1195,7 +1194,7 @@ async function appendFeedbackEntry({ userId = "", name = "", phone = "", session
         insertDataOption: "INSERT_ROWS",
         requestBody: { values }
     });
-    triggerAutoSync("feedback_append");
+    await triggerAutoSync("feedback_append");
     return { ok: true, at: now };
 }
 
@@ -1222,7 +1221,7 @@ async function logAccessEvent(userId, eventType = "visit", sessionId = "") {
             requestBody: { values }
         });
     }
-    triggerAutoSync("access_append");
+    await triggerAutoSync("access_append");
 }
 
 async function getLoginRows(sheets) {
@@ -1623,7 +1622,7 @@ async function createUserSession(user) {
         requestBody: { values: row }
     });
     invalidateCache("sessionRows");
-    triggerAutoSync("session_create");
+    await triggerAutoSync("session_create");
     return { sessionId, createdAtMs: now };
 }
 
@@ -1636,7 +1635,24 @@ async function getSessionById(sessionId) {
     const now = Date.now();
     const maxAgeMs = Math.max(1, SESSION_MAX_HOURS) * 60 * 60 * 1000;
     if (Number(found.loginMs || 0) > 0 && (now - Number(found.loginMs || 0)) >= maxAgeMs) {
-        await closeSession(found.sessionId, 0);
+        const durationSec = Math.max(0, Math.floor((now - Number(found.loginMs || now)) / 1000));
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            range: rangeFor("session", `G${found.rowNumber}:L${found.rowNumber}`),
+            valueInputOption: "RAW",
+            requestBody: {
+                values: [[
+                    formatIst(now),
+                    now,
+                    durationSec,
+                    Math.max(0, Number(found.screenTimeSec || 0)),
+                    formatIst(now),
+                    "LOGGED_OUT"
+                ]]
+            }
+        });
+        invalidateCache("sessionRows");
+        await triggerAutoSync("session_expire");
         return null;
     }
     return found;
@@ -1679,7 +1695,7 @@ async function closeSession(sessionId, screenTimeSec = 0) {
         }
     });
     invalidateCache("sessionRows");
-    triggerAutoSync("session_close");
+    await triggerAutoSync("session_close");
     return { ...session, logoutMs: now, durationSec };
 }
 
@@ -1786,52 +1802,34 @@ async function upsertClientState(clientId, nextState) {
         });
     }
     invalidateCache("storeRows");
-    triggerAutoSync("state_upsert");
+    await triggerAutoSync("state_upsert");
     return normalized;
 }
 
-function triggerAutoSync(_reason = "") {
+async function triggerAutoSync(_reason = "") {
     if (!AUTO_SYNC_ON_SAVE) return;
     const now = Date.now();
-    const runSync = () => {
-        if (autoSyncRunning) {
-            autoSyncRequestedWhileRunning = true;
-            return;
-        }
-        autoSyncRunning = true;
-        lastAutoSyncMs = Date.now();
-        syncAdminTabFromStore()
-            .catch((err) => {
-                console.error("Auto sync failed:", err && err.message ? err.message : err);
-            })
-            .finally(() => {
-                autoSyncRunning = false;
-                if (autoSyncRequestedWhileRunning) {
-                    autoSyncRequestedWhileRunning = false;
-                    triggerAutoSync("queued");
-                }
-            });
-    };
-
-    const elapsed = now - lastAutoSyncMs;
-    if (elapsed >= AUTO_SYNC_MIN_INTERVAL_MS) {
-        if (autoSyncTimer) {
-            clearTimeout(autoSyncTimer);
-            autoSyncTimer = null;
-        }
-        runSync();
-        return;
-    }
-
+    if ((now - lastAutoSyncMs) < AUTO_SYNC_MIN_INTERVAL_MS) return;
     if (autoSyncRunning) {
         autoSyncRequestedWhileRunning = true;
+        return;
     }
-    if (autoSyncTimer) return;
-    const waitMs = Math.max(50, AUTO_SYNC_MIN_INTERVAL_MS - elapsed);
-    autoSyncTimer = setTimeout(() => {
-        autoSyncTimer = null;
-        runSync();
-    }, waitMs);
+    autoSyncRunning = true;
+    lastAutoSyncMs = Date.now();
+    try {
+        await syncAdminTabFromStore();
+    } catch (err) {
+        console.error("Auto sync failed:", err && err.message ? err.message : err);
+    } finally {
+        autoSyncRunning = false;
+        if (autoSyncRequestedWhileRunning) {
+            autoSyncRequestedWhileRunning = false;
+            const elapsed = Date.now() - lastAutoSyncMs;
+            if (elapsed >= AUTO_SYNC_MIN_INTERVAL_MS) {
+                await triggerAutoSync("queued");
+            }
+        }
+    }
 }
 
 function toIso(ms) {

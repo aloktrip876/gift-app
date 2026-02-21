@@ -31,7 +31,7 @@
         const API_ADMIN_ANALYTICS_URL = '/api/admin/analytics';
         const API_ADMIN_ANALYTICS_CSV_URL = '/api/admin/analytics/sessions.csv';
         const API_FEEDBACK_URL = '/api/feedback';
-        const HEARTBEAT_INTERVAL_MS = 180000;
+        const HEARTBEAT_INTERVAL_MS = 60000;
 
         function createDefaultState() {
             return {
@@ -83,7 +83,7 @@
         };
         let saveDebounceTimer = null;
         let pendingStateSnapshot = null;
-        const SAVE_DEBOUNCE_MS = 350;
+        const SAVE_DEBOUNCE_MS = 120;
         let sharedColorPicker = null;
         let sharedColorPickerCallback = null;
 
@@ -416,13 +416,24 @@
             initTheme();
             const ok = await loadState();
             if (!ok) return;
-             
-            if (state.chests.length === 0 || state.chests.length !== TOTAL_CHESTS) {
-                state.chests = CHEST_DATA.map(c => ({
-                    id: c.id, isLocked: true, key: null, unlockedAt: null
-                }));
-                saveState();
-            }
+
+            const existingById = new Map((Array.isArray(state.chests) ? state.chests : []).map((c) => [Number(c.id), c]));
+            state.chests = CHEST_DATA.map((c) => {
+                const prev = existingById.get(Number(c.id));
+                return prev ? {
+                    id: c.id,
+                    isLocked: prev.isLocked !== false,
+                    key: prev.key || null,
+                    unlockedAt: prev.unlockedAt || null,
+                    bonusUsed: !!prev.bonusUsed
+                } : {
+                    id: c.id,
+                    isLocked: true,
+                    key: null,
+                    unlockedAt: null,
+                    bonusUsed: false
+                };
+            });
 
             if (!state.tutorialSeen) {
                 document.getElementById('tutorial-modal').classList.add('active');
@@ -1654,8 +1665,12 @@
             } catch (err) {
                 console.error(err);
                 const cached = readStateCache();
-                state = cached ? hydrateState(cached) : createDefaultState();
-                return true;
+                if (cached) {
+                    state = hydrateState(cached);
+                    return true;
+                }
+                setLoginStatus('Unable to load saved progress right now. Please retry.', true);
+                return false;
             }
         }
 
