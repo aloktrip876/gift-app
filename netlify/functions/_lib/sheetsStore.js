@@ -27,8 +27,8 @@ const SERVICE_KEY = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "").repla
 const SESSION_COOKIE = "gift_session_id";
 const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 3);
 const LOGIN_LOCK_MINUTES = Number(process.env.LOGIN_LOCK_MINUTES || 30);
-const AUTO_SYNC_ON_SAVE = String(process.env.GSHEET_AUTO_SYNC_ON_SAVE || "false").toLowerCase() === "true";
-const AUTO_SYNC_MIN_INTERVAL_MS = Number(process.env.GSHEET_AUTO_SYNC_MIN_INTERVAL_MS || 300000);
+const AUTO_SYNC_ON_SAVE = String(process.env.GSHEET_AUTO_SYNC_ON_SAVE || "true").toLowerCase() === "true";
+const AUTO_SYNC_MIN_INTERVAL_MS = Number(process.env.GSHEET_AUTO_SYNC_MIN_INTERVAL_MS || 15000);
 const SESSION_MAX_HOURS = Number(process.env.SESSION_MAX_HOURS || 24);
 
 const headerEnsured = {
@@ -49,6 +49,7 @@ const readCache = {
 
 const READ_CACHE_TTL_MS = 20000;
 let lastAutoSyncMs = 0;
+let autoSyncRunning = false;
 let singleSheetPruned = false;
 
 const SINGLE_SHEET_BANDS = {
@@ -1192,6 +1193,7 @@ async function appendFeedbackEntry({ userId = "", name = "", phone = "", session
         insertDataOption: "INSERT_ROWS",
         requestBody: { values }
     });
+    triggerAutoSync("feedback_append");
     return { ok: true, at: now };
 }
 
@@ -1218,6 +1220,7 @@ async function logAccessEvent(userId, eventType = "visit", sessionId = "") {
             requestBody: { values }
         });
     }
+    triggerAutoSync("access_append");
 }
 
 async function getLoginRows(sheets) {
@@ -1618,6 +1621,7 @@ async function createUserSession(user) {
         requestBody: { values: row }
     });
     invalidateCache("sessionRows");
+    triggerAutoSync("session_create");
     return { sessionId, createdAtMs: now };
 }
 
@@ -1673,6 +1677,7 @@ async function closeSession(sessionId, screenTimeSec = 0) {
         }
     });
     invalidateCache("sessionRows");
+    triggerAutoSync("session_close");
     return { ...session, logoutMs: now, durationSec };
 }
 
@@ -1779,16 +1784,24 @@ async function upsertClientState(clientId, nextState) {
         });
     }
     invalidateCache("storeRows");
-    if (AUTO_SYNC_ON_SAVE) {
-        const now = Date.now();
-        if ((now - lastAutoSyncMs) >= AUTO_SYNC_MIN_INTERVAL_MS) {
-            lastAutoSyncMs = now;
-            syncAdminTabFromStore().catch((err) => {
-                console.error("Auto sync failed:", err && err.message ? err.message : err);
-            });
-        }
-    }
+    triggerAutoSync("state_upsert");
     return normalized;
+}
+
+function triggerAutoSync(_reason = "") {
+    if (!AUTO_SYNC_ON_SAVE) return;
+    const now = Date.now();
+    if ((now - lastAutoSyncMs) < AUTO_SYNC_MIN_INTERVAL_MS) return;
+    if (autoSyncRunning) return;
+    lastAutoSyncMs = now;
+    autoSyncRunning = true;
+    syncAdminTabFromStore()
+        .catch((err) => {
+            console.error("Auto sync failed:", err && err.message ? err.message : err);
+        })
+        .finally(() => {
+            autoSyncRunning = false;
+        });
 }
 
 function toIso(ms) {
