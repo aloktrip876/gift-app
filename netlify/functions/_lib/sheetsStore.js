@@ -3,7 +3,7 @@
 const { google } = require("googleapis");
 const crypto = require("crypto");
 
-const SINGLE_SHEET_MODE = String(process.env.GOOGLE_SINGLE_SHEET_MODE || "true").toLowerCase() === "true";
+const SINGLE_SHEET_MODE = String(process.env.GOOGLE_SINGLE_SHEET_MODE || "false").toLowerCase() === "true";
 const MASTER_TAB = process.env.GOOGLE_MASTER_TAB || "GiftControlCenter";
 const LEGACY_STORE_TAB = process.env.GOOGLE_STATE_TAB || "StateStore";
 const LEGACY_ADMIN_TAB = process.env.GOOGLE_SHEET_TAB || "States";
@@ -29,6 +29,7 @@ const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 3);
 const LOGIN_LOCK_MINUTES = Number(process.env.LOGIN_LOCK_MINUTES || 30);
 const AUTO_SYNC_ON_SAVE = String(process.env.GSHEET_AUTO_SYNC_ON_SAVE || "false").toLowerCase() === "true";
 const AUTO_SYNC_MIN_INTERVAL_MS = Number(process.env.GSHEET_AUTO_SYNC_MIN_INTERVAL_MS || 300000);
+const SESSION_MAX_HOURS = Number(process.env.SESSION_MAX_HOURS || 24);
 
 const headerEnsured = {
     store: false,
@@ -914,6 +915,90 @@ async function formatSingleSheetSections(sheets) {
     });
 }
 
+async function formatStructuredTabs(sheets) {
+    if (SINGLE_SHEET_MODE) return;
+    const tabSpecs = [
+        { name: ADMIN_TAB, width: 28, color: DASH_COLORS.brandSoft, frozen: 1 },
+        { name: DASHBOARD_TAB, width: 12, color: DASH_COLORS.infoSoft, frozen: 3 },
+        { name: LOGIN_TAB, width: 8, color: DASH_COLORS.successSoft, frozen: 1 },
+        { name: STORE_TAB, width: 4, color: DASH_COLORS.warningSoft, frozen: 1 },
+        { name: SESSION_TAB, width: 13, color: rgb(0.92, 0.94, 1.0), frozen: 1 },
+        { name: ACCESS_TAB, width: 6, color: rgb(0.94, 0.98, 0.95), frozen: 1 },
+        { name: AUTH_LOCK_TAB, width: 8, color: rgb(1.0, 0.92, 0.92), frozen: 1 },
+        { name: FEEDBACK_TAB, width: 9, color: rgb(0.96, 0.93, 1.0), frozen: 1 }
+    ];
+    for (const spec of tabSpecs) {
+        const sheetId = await ensureTab(sheets, spec.name);
+        await clearBanding(sheets, sheetId);
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: GOOGLE_SHEET_ID,
+            requestBody: {
+                requests: [
+                    {
+                        updateSheetProperties: {
+                            properties: {
+                                sheetId,
+                                gridProperties: {
+                                    frozenRowCount: spec.frozen,
+                                    hideGridlines: true
+                                }
+                            },
+                            fields: "gridProperties.frozenRowCount,gridProperties.hideGridlines"
+                        }
+                    },
+                    {
+                        repeatCell: {
+                            range: {
+                                sheetId,
+                                startRowIndex: 0,
+                                endRowIndex: 1,
+                                startColumnIndex: 0,
+                                endColumnIndex: spec.width
+                            },
+                            cell: {
+                                userEnteredFormat: {
+                                    backgroundColor: spec.color,
+                                    textFormat: { bold: true, foregroundColor: DASH_COLORS.ink, fontSize: 10 },
+                                    horizontalAlignment: "CENTER",
+                                    verticalAlignment: "MIDDLE"
+                                }
+                            },
+                            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                        }
+                    },
+                    {
+                        addBanding: {
+                            bandedRange: {
+                                range: {
+                                    sheetId,
+                                    startRowIndex: 1,
+                                    endRowIndex: 2000,
+                                    startColumnIndex: 0,
+                                    endColumnIndex: spec.width
+                                },
+                                rowProperties: {
+                                    firstBandColor: rgb(1, 1, 1),
+                                    secondBandColor: rgb(0.97, 0.98, 1.0)
+                                }
+                            }
+                        }
+                    },
+                    {
+                        autoResizeDimensions: {
+                            dimensions: {
+                                sheetId,
+                                dimension: "COLUMNS",
+                                startIndex: 0,
+                                endIndex: spec.width
+                            }
+                        }
+                    }
+                ]
+            }
+        });
+    }
+}
+
 async function ensureStoreHeader(sheets) {
     if (headerEnsured.store) return;
     await ensureTab(sheets, STORE_TAB);
@@ -1540,7 +1625,15 @@ async function getSessionById(sessionId) {
     if (!sessionId) return null;
     const sheets = await getSheets();
     const rows = await getSessionRows(sheets);
-    return rows.find((r) => r.sessionId === sessionId && r.status === "ACTIVE") || null;
+    const found = rows.find((r) => r.sessionId === sessionId && r.status === "ACTIVE") || null;
+    if (!found) return null;
+    const now = Date.now();
+    const maxAgeMs = Math.max(1, SESSION_MAX_HOURS) * 60 * 60 * 1000;
+    if (Number(found.loginMs || 0) > 0 && (now - Number(found.loginMs || 0)) >= maxAgeMs) {
+        await closeSession(found.sessionId, 0);
+        return null;
+    }
+    return found;
 }
 
 async function touchSession(sessionId) {
@@ -1918,6 +2011,7 @@ async function syncAdminTabFromStore() {
     });
     await syncDashboardTab(sheets, states);
     await formatSingleSheetSections(sheets);
+    await formatStructuredTabs(sheets);
     return { ok: true, syncedRows: table.rows.length };
 }
 

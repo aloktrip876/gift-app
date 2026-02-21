@@ -464,6 +464,25 @@
                         visibleSince = Date.now();
                     } else {
                         updateVisibleScreenTime();
+                        if (currentUser) saveState(true).catch(() => {});
+                    }
+                });
+
+                window.addEventListener('pagehide', () => {
+                    try {
+                        if (!currentUser) return;
+                        updateVisibleScreenTime();
+                        const snapshot = JSON.parse(JSON.stringify(state));
+                        snapshot.localUpdatedAt = Date.now();
+                        writeStateCache(snapshot);
+                        const blob = new Blob([JSON.stringify({ state: snapshot })], { type: 'application/json' });
+                        if (navigator.sendBeacon) {
+                            navigator.sendBeacon(API_STATE_URL, blob);
+                        } else {
+                            saveState(true).catch(() => {});
+                        }
+                    } catch (err) {
+                        // Ignore unload sync errors.
                     }
                 });
 
@@ -1613,6 +1632,7 @@
                 }
                 if (!res.ok) throw new Error(`State load failed: ${res.status}`);
                 const data = await res.json();
+                if (data && data.user) applyUserPersonalization(data.user);
                 const serverState = hydrateState(data.state);
                 const cachedState = readStateCache();
                 const hydratedCache = cachedState ? hydrateState(cachedState) : null;
@@ -1630,7 +1650,6 @@
                     state = serverState;
                     writeStateCache(state);
                 }
-                if (data && data.user) applyUserPersonalization(data.user);
                 return true;
             } catch (err) {
                 console.error(err);
