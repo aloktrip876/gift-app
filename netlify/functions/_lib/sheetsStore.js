@@ -274,6 +274,57 @@ function parseJsonSafe(text, fallback) {
     }
 }
 
+function hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function normalizeContentProfileShape(input) {
+    let profile = (input && typeof input === "object") ? input : {};
+
+    // If caller passed a full user payload, extract nested contentProfile first.
+    if (profile.contentProfile && typeof profile.contentProfile === "object") {
+        const looksLikeUserEnvelope =
+            hasOwn(profile, "userId") ||
+            hasOwn(profile, "name") ||
+            hasOwn(profile, "phone") ||
+            hasOwn(profile, "isActive") ||
+            hasOwn(profile, "notes");
+        if (looksLikeUserEnvelope) {
+            profile = profile.contentProfile;
+        }
+    }
+
+    // Defensively unwrap accidental double nesting: contentProfile.contentProfile...
+    for (let i = 0; i < 3; i++) {
+        if (!profile || typeof profile !== "object") break;
+        const nested = profile.contentProfile;
+        if (!nested || typeof nested !== "object") break;
+
+        const currentLooksRenderable =
+            hasOwn(profile, "chestOverrides") ||
+            hasOwn(profile, "headerTitle") ||
+            hasOwn(profile, "headerSubtitle") ||
+            hasOwn(profile, "tutorialTitle") ||
+            hasOwn(profile, "tabIcon") ||
+            hasOwn(profile, "footerText");
+        const nestedLooksRenderable =
+            hasOwn(nested, "chestOverrides") ||
+            hasOwn(nested, "headerTitle") ||
+            hasOwn(nested, "headerSubtitle") ||
+            hasOwn(nested, "tutorialTitle") ||
+            hasOwn(nested, "tabIcon") ||
+            hasOwn(nested, "footerText");
+
+        if (nestedLooksRenderable || !currentLooksRenderable) {
+            profile = nested;
+        } else {
+            break;
+        }
+    }
+
+    return profile && typeof profile === "object" ? profile : {};
+}
+
 function ensureClientId(headers) {
     const cookies = parseCookies(headers && (headers.cookie || headers.Cookie));
     let clientId = cookies.gift_client_id;
@@ -1393,7 +1444,7 @@ async function registerLoginFailure(name, phone) {
 }
 
 function parseUserContentProfile(loginRow) {
-    const profile = parseJsonSafe(loginRow.contentJson, {});
+    const profile = normalizeContentProfileShape(parseJsonSafe(loginRow.contentJson, {}));
     return {
         userId: loginRow.userId,
         name: loginRow.name,
@@ -1418,7 +1469,9 @@ function sanitizeLoginUserInput(input) {
     const isActive = String(input.isActive === false ? "false" : input.isActive || "true").toLowerCase();
     const pageTitle = String(input.pageTitle || "").trim();
     const notes = String(input.notes || "").trim();
-    const contentProfile = input.contentProfile && typeof input.contentProfile === "object" ? input.contentProfile : {};
+    const contentProfile = normalizeContentProfileShape(
+        input.contentProfile && typeof input.contentProfile === "object" ? input.contentProfile : {}
+    );
     if (!userId) throw new Error("userId is required");
     if (!name) throw new Error("name is required");
     if (!phone) throw new Error("phone is required");
@@ -1442,7 +1495,7 @@ async function listLoginUsers() {
         phone: r.phone,
         isActive: !["false", "0", "no"].includes(String(r.isActive || "").toLowerCase()),
         pageTitle: r.pageTitle,
-        contentProfile: parseJsonSafe(r.contentJson, {}),
+        contentProfile: normalizeContentProfileShape(parseJsonSafe(r.contentJson, {})),
         notes: r.notes
     }));
 }
@@ -1484,7 +1537,7 @@ async function upsertLoginUser(input) {
         phone: payload.phone,
         isActive: payload.isActive === "true",
         pageTitle: payload.pageTitle,
-        contentProfile: parseJsonSafe(payload.contentJson, {}),
+        contentProfile: normalizeContentProfileShape(parseJsonSafe(payload.contentJson, {})),
         notes: payload.notes
     };
 }

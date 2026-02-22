@@ -1767,7 +1767,27 @@
             const notes = (document.getElementById('um-notes').value || '').trim();
             const rawJson = (document.getElementById('um-content-json').value || '').trim();
             let contentProfile = {};
-            if (rawJson) contentProfile = JSON.parse(rawJson);
+            if (rawJson) {
+                const parsed = JSON.parse(rawJson);
+                if (parsed && typeof parsed === 'object') {
+                    // If admin pastes the full user JSON, extract only contentProfile.
+                    const looksLikeUserEnvelope =
+                        Object.prototype.hasOwnProperty.call(parsed, 'userId') ||
+                        Object.prototype.hasOwnProperty.call(parsed, 'name') ||
+                        Object.prototype.hasOwnProperty.call(parsed, 'phone') ||
+                        Object.prototype.hasOwnProperty.call(parsed, 'isActive') ||
+                        Object.prototype.hasOwnProperty.call(parsed, 'notes');
+                    contentProfile = (looksLikeUserEnvelope && parsed.contentProfile && typeof parsed.contentProfile === 'object')
+                        ? parsed.contentProfile
+                        : parsed;
+
+                    // Defensively unwrap accidental nested contentProfile.
+                    if (contentProfile && typeof contentProfile === 'object' &&
+                        contentProfile.contentProfile && typeof contentProfile.contentProfile === 'object') {
+                        contentProfile = contentProfile.contentProfile;
+                    }
+                }
+            }
             return { userId, name, phone, pageTitle, isActive, notes, contentProfile };
         }
 
